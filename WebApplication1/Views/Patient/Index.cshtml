@@ -160,22 +160,16 @@
                 transferHospital: document.querySelector('input[name="transferHospital"]') ? document.querySelector('input[name="transferHospital"]').value : ""
             },
             success: function (result) {
-                if (result.status != 'error') {
-                    alert("查詢成功");
+                if (Array.isArray(result) && result.length > 0) {
+                    document.getElementById('patientList').style.display = "block";
+                    document.getElementById('noData').style.display = "none";
 
-                    if(result.length > 0) {
-                        document.getElementById('patientList').style.display = "block";
-                        document.getElementById('noData').style.display = "none";
-
-                        SearchList(result);
-                    }
-                    else {
-                        document.getElementById('patientList').style.display = "none";
-                        document.getElementById('noData').style.display = "block";
-                    }
-                    return;
+                    SearchList(result);
                 }
-                alert(result.meassge);
+                else {
+                    document.getElementById('patientList').style.display = "none";
+                    document.getElementById('noData').style.display = "block";
+                }
             },
             error: function (err) {
                 alert(err.responseText);
@@ -207,7 +201,7 @@
             var cell10 = row.insertCell(9);
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
-                               <button type="button" class="btn btn-danger onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
+                               <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
             cell2.innerHTML = result[i].patientId;
             cell3.innerHTML = result[i].familyName + result[i].givenName;
             cell4.innerHTML = (result[i].gender == 'M') ? '男' : '女';
@@ -327,8 +321,25 @@
         });
     };
     function Delete(id) {
-        alert("尚未開發");
-        return;
+       $.ajax({
+            url: '@Url.Content("~/Patient/Delete")',
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                patientId: id
+            },
+            success: function (result){
+                if(result){
+                    Search();
+                    alert("刪除成功");
+                    return;
+                }
+                alert(result.message);
+            },
+            error: function(err){
+                alert(err.responseText);
+            }
+        });
     };
 
 </script>

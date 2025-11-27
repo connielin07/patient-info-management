@@ -69,17 +69,13 @@ namespace WebApplication1.Controllers
             {
                 var resultList = new List<PatientViewModel>();
                 var dbResult = QueryPatientList(patientId, idNo, familyName, givenName).Result;
-                if (dbResult.Count() > 0)
+                if (dbResult.Count() >= 0)
                 {
                     resultList = dbResult.Select(ConvertPatientDBModeltoViewModel).ToList();
                     return Ok(resultList);
                 }
-                else if (dbResult.Count() == 0)
-                {
-                    return Ok("No Data");
-                }
 
-                return BadRequest(dbResult);
+                return BadRequest("查詢失敗");
             }
             catch (Exception ex)
             {
@@ -90,7 +86,34 @@ namespace WebApplication1.Controllers
         [HttpPost]
         public IActionResult Delete(long patientId)
         {
-            return Ok();
+            try
+            {
+                var patientDBModel = new PatientDBModel();
+
+                // 依照 PatientId 查詢該筆資料
+                var patientDBModelList = QueryPatientList(patientId).Result;
+
+                if (patientDBModelList.Count() > 0)
+                {
+                    patientDBModel = patientDBModelList.First();
+                }
+
+                // 將該筆資料設定為【未啟用】
+                patientDBModel.Active = false;
+
+                var dbResult = UpdatePatient(patientDBModel);
+
+                if (dbResult.Result)
+                {
+                    return Ok(dbResult.Result);
+                }
+
+                return BadRequest(dbResult);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { Status = "Error", Error = ex.Message });
+            }
         }
 
         #region SQL

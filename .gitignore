@@ -8,5 +8,7 @@
 # Generated SQL deployment outputs
 DB1/bin/
 DB1/obj/
+DB1/DB1.dbmdl
+DB1/DB1.jfm
 
 # Publish profiles or temporary files can be added below as needed

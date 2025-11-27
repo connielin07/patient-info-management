@@ -1,0 +1,12 @@
+.vs/
+*.user
+*.suo
+
+[Bb]in/
+[Oo]bj/
+
+# Generated SQL deployment outputs
+DB1/bin/
+DB1/obj/
+
+# Publish profiles or temporary files can be added below as needed

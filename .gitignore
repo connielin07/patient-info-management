@@ -11,4 +11,7 @@ DB1/obj/
 DB1/DB1.dbmdl
 DB1/DB1.jfm
 
+# Local web config overrides
+WebApplication1/appsettings.Development.json
+
 # Publish profiles or temporary files can be added below as needed

@@ -60,6 +60,7 @@
                     <th>出院日期</th>
                     <th>出院狀況</th>
                     <th>轉院院名</th>
+                    <th>匯出FHIR</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -199,6 +200,7 @@
             var cell8 = row.insertCell(7);
             var cell9 = row.insertCell(8);
             var cell10 = row.insertCell(9);
+            var cell11 = row.insertCell(10);
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -211,6 +213,8 @@
             cell8.innerHTML = new Date(result[i].dischargeDate).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
             cell9.innerHTML = result[i].dischargeStatus;
             cell10.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
+            // 最右邊匯出FHIR按鈕
+            cell11.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
         }
     };
 
@@ -341,5 +345,10 @@
             }
         });
     };
+
+    function ExportFHIR(id) {
+        // 直接用 GET 下載 FHIR JSON 檔
+        window.location.href = '@Url.Content("~/Patient/ExportFHIR")' + '?patientId=' + id;
+    }
 
 </script>

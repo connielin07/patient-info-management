@@ -4,6 +4,8 @@ using System.Data.SqlClient;
 using System.Data;
 using WebApplication1.Models;
 using Microsoft.Extensions.Configuration;
+using System.Text;
+using System.Text.Json;
 
 namespace WebApplication1.Controllers
 {
@@ -114,6 +116,105 @@ namespace WebApplication1.Controllers
             {
                 return Json(new { Status = "Error", Error = ex.Message });
             }
+        }
+
+        [HttpGet]
+        public IActionResult ExportFHIR(long patientId)
+        {
+            // 用你原本的查詢方法抓資料
+            var patientList = QueryPatientList(patientId).Result;
+
+            if (patientList == null || patientList.Count == 0)
+            {
+                return NotFound("查無此病人");
+            }
+
+            var p = patientList.First();
+
+            // 這裡做一個「簡化版」FHIR Patient 資源
+            var fhirPatient = new
+            {
+                resourceType = "Patient",
+                id = p.PatientId.ToString(),
+                active = p.Active,
+                identifier = new[]
+                {
+            new
+            {
+                use = "official",
+                system = "http://example.org/hospital/patient/idno",
+                value = p.IdNo
+            }
+        },
+                name = new[]
+                {
+            new
+            {
+                use = "official",
+                family = p.FamilyName,
+                given = new[] { p.GivenName }
+            }
+        },
+                telecom = string.IsNullOrWhiteSpace(p.Telecom)
+                    ? null
+                    : new[]
+                    {
+                new
+                {
+                    system = "phone",
+                    value = p.Telecom,
+                    use = "mobile"
+                }
+                    },
+                gender = p.Gender == "M" ? "male" : "female",
+                birthDate = p.Birthday.ToString("yyyy-MM-dd"),
+                address = string.IsNullOrWhiteSpace(p.Address)
+                    ? null
+                    : new[]
+                    {
+                new
+                {
+                    text = p.Address
+                }
+                    },
+                // 下面這些其實比較像 Encounter 的欄位，這裡先用 extension 放進去
+                extension = new[]
+{
+    new
+    {
+        url = "http://example.org/fhir/StructureDefinition/admitDate",
+        valueString = p.AdmitDate.ToString("yyyy-MM-dd")
+    },
+    new
+    {
+        url = "http://example.org/fhir/StructureDefinition/dischargeDate",
+        valueString = (p.DischargeDate == DateTime.MinValue
+            ? ""
+            : p.DischargeDate.ToString("yyyy-MM-dd"))
+    },
+    new
+    {
+        url = "http://example.org/fhir/StructureDefinition/dischargeStatus",
+        valueString = p.DischargeStatus
+    },
+    new
+    {
+        url = "http://example.org/fhir/StructureDefinition/transferHospital",
+        valueString = p.TransferHospital
+    }
+}
+            };
+
+            var json = JsonSerializer.Serialize(
+                fhirPatient,
+                new JsonSerializerOptions { WriteIndented = true }
+            );
+
+            var bytes = Encoding.UTF8.GetBytes(json);
+            var fileName = $"Patient-{p.PatientId}.json";
+
+            // Content-Type 用 application/fhir+json
+            return File(bytes, "application/fhir+json", fileName);
         }
 
         #region SQL

@@ -9,7 +9,8 @@
 	[Gender] VARCHAR(10) NOT NULL,
 	[Birthday] DATE NOT NULL,
 	[Address] NVARCHAR(100) NOT NULL,
-	[AdmitDate] DATE NOT NULL,
+	[IsHospitalized] CHAR(1) NOT NULL,
+	[AdmitDate] DATE NULL,
 	[DischargeDate] DATE NULL,
 	[DischargeStatus] NVARCHAR(20) NULL,
 	[TransferHospital] NVARCHAR(100) NULL

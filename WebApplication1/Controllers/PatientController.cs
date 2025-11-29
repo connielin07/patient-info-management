@@ -12,6 +12,8 @@ namespace WebApplication1.Controllers
     public class PatientController : Controller
     {
         private readonly string ConnStr;
+        private string admitDateString;
+        private string dischargeDateString;
 
         public PatientController(IConfiguration configuration)
         {
@@ -130,6 +132,9 @@ namespace WebApplication1.Controllers
             }
 
             var p = patientList.First();
+            // 在函式內定義並格式化，處理空值
+            var admitDateString = p.AdmitDate.HasValue ? p.AdmitDate.Value.ToString("yyyy-MM-dd") : null;
+            var dischargeDateString = p.DischargeDate.HasValue ? p.DischargeDate.Value.ToString("yyyy-MM-dd") : null;
 
             // 這裡做一個「簡化版」FHIR Patient 資源
             var fhirPatient = new
@@ -180,17 +185,21 @@ namespace WebApplication1.Controllers
                 // 下面這些其實比較像 Encounter 的欄位，這裡先用 extension 放進去
                 extension = new[]
 {
+
+    new
+    {
+        url = "[http://example.org/fhir/StructureDefinition/isHospitalized](http://example.org/fhir/StructureDefinition/isHospitalized)",
+        valueString = p.IsHospitalized // 👈 新增 IsHospitalized
+    },
     new
     {
         url = "http://example.org/fhir/StructureDefinition/admitDate",
-        valueString = p.AdmitDate.ToString("yyyy-MM-dd")
+        valueString = admitDateString // ✅ 現在使用正確處理後的區域變數
     },
     new
     {
         url = "http://example.org/fhir/StructureDefinition/dischargeDate",
-        valueString = (p.DischargeDate == DateTime.MinValue
-            ? ""
-            : p.DischargeDate.ToString("yyyy-MM-dd"))
+        valueString = dischargeDateString // ✅ 現在使用正確處理後的區域變數
     },
     new
     {
@@ -225,8 +234,8 @@ namespace WebApplication1.Controllers
             SqlConnection connection = new SqlConnection(ConnStr);
 
             var insertStr = @"INSERT INTO DB1.dbo.Patient
-                (IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday, Address, AdmitDate, DischargeDate, DischargeStatus, TransferHospital)
-                VALUES (@IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday, @Address, @AdmitDate, @DischargeDate, @DischargeStatus, @TransferHospital)
+                (IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday, Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus, TransferHospital)
+                VALUES (@IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday, @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus, @TransferHospital)
                 SELECT @InsertId = SCOPE_IDENTITY()";
 
             SqlCommand command = new SqlCommand(insertStr, connection);
@@ -243,8 +252,9 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@Gender", patient.Gender));
             command.Parameters.Add(new SqlParameter("@Birthday", patient.Birthday.ToString("yyyy/MM/dd")));
             command.Parameters.Add(new SqlParameter("@Address", patient.Address));
-            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.ToString("yyyy/MM/dd")));
-            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.ToString("yyyy/MM/dd")));
+            command.Parameters.Add(new SqlParameter("@IsHospitalized", patient.IsHospitalized));
+            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
+            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
             command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
 
@@ -274,6 +284,7 @@ namespace WebApplication1.Controllers
                                     , Gender
                                     , Birthday
                                     , Address
+                                    , IsHospitalized
                                     , AdmitDate
                                     , DischargeDate
                                     , DischargeStatus
@@ -345,7 +356,8 @@ namespace WebApplication1.Controllers
                         Gender = reader.GetString(reader.GetOrdinal("Gender")),
                         Birthday = reader.GetDateTime(reader.GetOrdinal("Birthday")),
                         Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
-                        AdmitDate = reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
+                        IsHospitalized = reader.GetString(reader.GetOrdinal("IsHospitalized")),
+                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
                         DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
                         DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("DischargeStatus")),
                         TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferHospital")),
@@ -377,6 +389,7 @@ namespace WebApplication1.Controllers
                                    Gender = @Gender,
                                    Birthday = @Birthday,
                                    Address = @Address,
+                                   IsHospitalized = @IsHospitalized,
                                    AdmitDate = @AdmitDate,
                                    DischargeDate = @DischargeDate,
                                    DischargeStatus = @DischargeStatus,
@@ -394,8 +407,9 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@Gender", patient.Gender));
             command.Parameters.Add(new SqlParameter("@Birthday", patient.Birthday.ToString("yyyy/MM/dd")));
             command.Parameters.Add(new SqlParameter("@Address", patient.Address));
-            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.ToString("yyyy/MM/dd")));
-            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.ToString("yyyy/MM/dd")));
+            command.Parameters.Add(new SqlParameter("@IsHospitalized", patient.IsHospitalized));
+            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
+            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
             command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
 
@@ -427,6 +441,7 @@ namespace WebApplication1.Controllers
                 Gender = viewModel.Gender,
                 Birthday = viewModel.Birthday,
                 Address = viewModel.Address,
+                IsHospitalized = viewModel.IsHospitalized,
                 AdmitDate = viewModel.AdmitDate,
                 DischargeDate = viewModel.DischargeDate,
                 DischargeStatus = viewModel.DischargeStatus,
@@ -447,6 +462,7 @@ namespace WebApplication1.Controllers
                 Gender = dbModel.Gender,
                 Birthday = dbModel.Birthday,
                 Address = dbModel.Address,
+                IsHospitalized = dbModel.IsHospitalized,
                 AdmitDate = dbModel.AdmitDate,
                 DischargeDate = dbModel.DischargeDate,
                 DischargeStatus = dbModel.DischargeStatus,

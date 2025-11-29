@@ -56,6 +56,7 @@
                     <th>性別</th>
                     <th>身分證字號</th>
                     <th>生日</th>
+                    <th>是否住院</th>
                     <th>入院日期</th>
                     <th>出院日期</th>
                     <th>出院狀況</th>
@@ -111,15 +112,35 @@
                     <textarea class="form-control" rows="3" id="Address" name="Address">@PatientViewModel.Address</textarea>
                 </div>
             </div>
+
             <div class="row">
                 <div class="form-group col-md-3">
-                    <label class="control-label">入院日期</label>
-                    <input type="date" class="form-control" id="AdmitDate" name="admitDate" value="@(PatientViewModel.AdmitDate == DateTime.MinValue ? "" : PatientViewModel.AdmitDate.ToString("yyyy-MM-dd"))" required>
+                    <label class="control-label">是否住院</label>
+                    <select class="form-control" id="IsHospitalized" name="IsHospitalized" onchange="toggleHospitalized(this.value)">
+                        <option value="">請下拉選單</option>
+                        <option value="Y" selected="@(PatientViewModel.IsHospitalized == "Y")">是</option>
+                        <option value="N" selected="@(PatientViewModel.IsHospitalized == "N")">否</option>
+                    </select>
                 </div>
+            </div>
+
+            <div id="hospitalizedDateRow" class="row" style="display:@(PatientViewModel.IsHospitalized == "Y" ? "flex" : "none");">
+
+                <div class="form-group col-md-3">
+                    <label class="control-label">入院日期</label>
+                    <input type="date" class="form-control" id="AdmitDate" name="admitDate"
+                           value="@(PatientViewModel.AdmitDate.HasValue? PatientViewModel.AdmitDate.Value.ToString("yyyy-MM-dd") : "")">
+                </div>
+
                 <div class="form-group col-md-3">
                     <label class="control-label">出院日期</label>
-                    <input type="date" class="form-control" id="DischargeDate" name="dischargeDate" value="@(PatientViewModel.DischargeDate == DateTime.MinValue ? "" : PatientViewModel.DischargeDate.ToString("yyyy-MM-dd"))" required>
+                    <input type="date" class="form-control" id="DischargeDate" name="dischargeDate"
+                           value="@(PatientViewModel.DischargeDate.HasValue? PatientViewModel.DischargeDate.Value.ToString("yyyy-MM-dd") : "")">
                 </div>
+            </div>
+
+
+            <div class="row">
                 <div class="form-group col-md-3">
                     <label class="control-label">出院狀況</label>
                     @Html.DropDownList("DischargeStatus", dischargeStatusOptions, new { @class = "form-control", onchange = "toggleTransferHospital(this.value)", id = "DischargeStatus" })
@@ -135,6 +156,22 @@
         <button type ="button" class="btn btn-primary" id="submitButton" style="display: none" onclick="Submit()">儲存</button>
     </div>
 </div>
+<script>
+    function toggleHospitalized(value) {
+        const row = document.getElementById("hospitalizedDateRow");
+        const admit = document.getElementById("AdmitDate");
+        const discharge = document.getElementById("DischargeDate");
+
+        if (value === "Y") {
+            row.style.display = "flex";
+        } else {
+            row.style.display = "none";
+            // 清空日期
+            admit.value = "";
+            discharge.value = "";
+        }
+    }
+</script>
 
 <script>
         // 根據出院狀況顯示或隱藏轉院欄位
@@ -196,11 +233,12 @@
             var cell4 = row.insertCell(3);
             var cell5 = row.insertCell(4);
             var cell6 = row.insertCell(5);
-            var cell7 = row.insertCell(6);
-            var cell8 = row.insertCell(7);
-            var cell9 = row.insertCell(8);
-            var cell10 = row.insertCell(9);
-            var cell11 = row.insertCell(10);
+            var cell7 = row.insertCell(6); // 👈 IsHospitalized
+            var cell8 = row.insertCell(7); // 👈 AdmitDate
+            var cell9 = row.insertCell(8); // 👈 DischargeDate
+            var cell10 = row.insertCell(9); // 👈 DischargeStatus
+            var cell11 = row.insertCell(10); // 👈 TransferHospital
+            var cell12 = row.insertCell(11); // 👈 ExportFHIR
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -209,25 +247,38 @@
             cell4.innerHTML = (result[i].gender == 'M') ? '男' : '女';
             cell5.innerHTML = result[i].idNo;
             cell6.innerHTML = new Date(result[i].birthday).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            cell7.innerHTML = new Date(result[i].admitDate).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            cell8.innerHTML = new Date(result[i].dischargeDate).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            cell9.innerHTML = result[i].dischargeStatus;
-            cell10.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
+
+            // 是否住院
+            cell7.innerHTML = result[i].isHospitalized === 'Y' ? '是' : (result[i].isHospitalized === 'N' ? '否' : 'N/A'); // 👈 調整 IsHospitalized
+
+            // 轉換日期格式，如果日期是 MinValue 則顯示 N/A
+            const formatIfValid = (dateString) => {
+                const date = new Date(dateString);
+                // 檢查是否是有效的日期 (非 0001/01/01 且非無效日期)
+                if (date.getFullYear() > 1 && !isNaN(date)) {
+                    return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                }
+                return 'N/A';
+            };
+
+            cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
+            cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
+            cell10.innerHTML = result[i].dischargeStatus;
+            cell11.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
+
             // 最右邊匯出FHIR按鈕
-            cell11.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
+            cell12.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`; // 👈 ExportFHIR
         }
     };
 
     function Submit(){
-        var admitDate = document.querySelector('input[name="admitDate"]').value;
-        var dischargeDate = document.querySelector('input[name="dischargeDate"]').value;
         var dischargeStatus = document.getElementById("DischargeStatus").value;
         var transferHospitalInput = document.querySelector('input[name="transferHospital"]');
         var transferHospital = transferHospitalInput ? transferHospitalInput.value : "";
         if (dischargeStatus !== "轉院") {
             transferHospital = "";
         }
-        
+
         var formData = {
             PatientId: document.getElementById("PatientId").value,
             IdNo: document.getElementById("IdNo").value,
@@ -238,8 +289,9 @@
             Gender: document.getElementById("Gender").value,
             Birthday: document.getElementById("Birthday").value,
             Address: document.getElementById("Address").value,
-            AdmitDate: admitDate,
-            DischargeDate: dischargeDate,
+            IsHospitalized: document.getElementById("IsHospitalized").value,
+            AdmitDate: document.getElementById("AdmitDate").value,
+            DischargeDate: document.getElementById("DischargeDate").value,
             DischargeStatus: dischargeStatus,
             TransferHospital: transferHospital
         }
@@ -282,8 +334,8 @@
         document.getElementById("Gender").value = "";
         document.getElementById("Telecom").value = "";
         document.getElementById("Address").value = "";
-        document.getElementById("AdmitDate").value = new Date().toLocaleDateString('en-CA');
-        document.getElementById("DischargeDate").value = new Date().toLocaleDateString('en-CA');
+        document.getElementById("IsHospitalized").value = ""; // 👈 初始為空（請下拉選單）
+        toggleHospitalized(""); // 👈 隱藏入院/出院日期
         document.getElementById("DischargeStatus").value = "";
         toggleTransferHospital("");
     };
@@ -308,6 +360,7 @@
                     document.getElementById("Gender").value = result[0].gender;
                     document.getElementById("Telecom").value = result[0].telecom;
                     document.getElementById("Address").value = result[0].address;
+                    document.getElementById("IsHospitalized").value = result[0].isHospitalized;
                     document.getElementById("AdmitDate").value = new Date(result[0].admitDate).toLocaleDateString('en-CA');
                     document.getElementById("DischargeDate").value = new Date(result[0].dischargeDate).toLocaleDateString('en-CA');
                     document.getElementById("DischargeStatus").value = result[0].dischargeStatus;

@@ -13,147 +13,170 @@
     };
 }
 
-<div id="patientForm">
+<div id="patientForm" class="patient-page">
     <div class="model-header">
+        <p class="eyebrow">Patient Management</p>
         <h1 class="display-4">病人資訊清單</h1>
+        <p class="section-subtitle">整合搜尋、列表與編輯的清爽版面</p>
     </div>
-    <div class="modal-body">
 
-        @* Search Section *@
-        <div class="row">
-            <div class="form-inline col-md-3">
-                <label class="control-label">病歷號</label>
-                <input type="text" class="form-control" id="SearchPatientId" name="SearchPatientId" value="">
+    <div class="card-panel patient-card">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <p class="eyebrow mb-1">搜尋條件</p>
+                <h2 class="section-title mb-0">查詢病人</h2>
+                <p class="section-subtitle">輸入常用欄位後點擊查詢或新增</p>
             </div>
-            <div class="form-inline col-md-3">
-                <label class="control-label">身分證字號</label>
-                <input type="text" class="form-control" id="SearchIdNo" name="SearchIdNo" value="">
-            </div>
-            <div class="form-inline col-md-3">
-                <label class="control-label">姓</label>
-                <input type="text" class="form-control" id="SearchFamilyName" name="SearchFamilyName" value="">
-            </div>
-            <div class="form-inline col-md-3">
-                <label class="control-label">名</label>
-                <input type="text" class="form-control" id="SearchGivenName" name="SearchGivenName" value="">
+            <div class="section-actions d-flex flex-wrap">
+                <button type="button" class="btn btn-success" onclick="Add()">新增</button>
+                <button type="button" class="btn btn-outline-primary" onclick="Search()">查詢</button>
             </div>
         </div>
-        <div class="row">
-            <div class="form-inline">
-                <button type="button" class="btn btn-primary" style="float:right" onclick="Search()">查詢</button>
-                <button type="button" class="btn btn-success" style="float:right" onclick="Add()">新增</button>
+
+        <div class="row g-3">
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">病歷號</label>
+                <input type="text" class="form-control" id="SearchPatientId" name="SearchPatientId" value="" placeholder="可輸入部分病歷號">
             </div>
-            <p></p>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">身分證字號</label>
+                <input type="text" class="form-control" id="SearchIdNo" name="SearchIdNo" value="" placeholder="輸入全碼或後四碼">
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">姓</label>
+                <input type="text" class="form-control" id="SearchFamilyName" name="SearchFamilyName" value="" placeholder="例：王">
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">名</label>
+                <input type="text" class="form-control" id="SearchGivenName" name="SearchGivenName" value="" placeholder="例：小明">
+            </div>
+        </div>
+    </div>
+
+    <div class="card-panel table-panel">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <p class="eyebrow mb-1">結果</p>
+                <h2 class="section-title mb-0">病人清單</h2>
+                <p class="section-subtitle">固定欄寬並可橫向捲動，重點欄位置頂</p>
+            </div>
         </div>
 
-        @* Info List *@
-        <table class="table table-striped" id="patientList" style="width: max-content; display: none">
-            <thead style="vertical-align: middle;">
-                <tr>
-                    <th></th>
-                    <th>病歷號</th>
-                    <th>姓名</th>
-                    <th>性別</th>
-                    <th>身分證字號</th>
-                    <th>生日</th>
-                    <th>是否住院</th>
-                    <th>入院日期</th>
-                    <th>出院日期</th>
-                    <th>出院狀況</th>
-                    <th>轉院院名</th>
-                    <th>匯出FHIR</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="patient-table-wrapper">
+            <table class="table patient-table table-striped align-middle" id="patientList" style="display: none">
+                <thead style="vertical-align: middle;">
+                    <tr>
+                        <th></th>
+                        <th>病歷號</th>
+                        <th>姓名</th>
+                        <th>性別</th>
+                        <th>身分證字號</th>
+                        <th>生日</th>
+                        <th>是否住院</th>
+                        <th>入院日期</th>
+                        <th>出院日期</th>
+                        <th>出院狀況</th>
+                        <th>轉院院名</th>
+                        <th>匯出FHIR</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
         <div>
-            <span id="noData" style="display: none">查無資料</span>
-        </div>
-
-        @* Insert/edit *@
-        <div id="editForm" style="display: none">
-            <div class="row" style="display: none">
-                <div class="form-group col-md-12">
-                    <label class="control-label">病歷號</label>
-                    <input type="text" class="form-control" id="PatientId" name="PatientId" value="@PatientViewModel.PatientId">
-                </div>
-            </div>
-            <div class="row">
-                <div class="form-group col-md-6">
-                    <label class="control-label">姓</label>
-                    <input type="text" class="form-control" id="FamilyName" name="FamilyName" value="@PatientViewModel.FamilyName">
-                </div>
-                <div class="form-group col-md-6">
-                    <label class="control-label">名</label>
-                    <input type="text" class="form-control" id="GivenName" name="GivenName" value="@PatientViewModel.GivenName">
-                </div>
-            </div>
-            <div class="row">
-                <div class="form-group col-md-3">
-                    <label class="control-label">身分證字號</label>
-                    <input type="text" class="form-control" id="IdNo" name="IdNo" value="@PatientViewModel.IdNo">
-                </div>
-                <div class="form-group col-md-3">
-                    <label class="control-label">生日</label>
-                    <input type="date" class="form-control" id="Birthday" name="Birthday" value="@(PatientViewModel.Birthday == DateTime.MinValue ? "" : PatientViewModel.Birthday.ToString("yyyy-MM-dd"))">
-                </div>
-                <div class="form-group col-md-3">
-                    <label>性別</label>
-                    @Html.DropDownList("group", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
-                </div>
-                <div class="form-group col-md-3">
-                    <label class="control-label">聯絡電話</label>
-                    <input type="text" class="form-control" id="Telecom" name="Telecom" value="@PatientViewModel.Telecom">
-                </div>
-            </div>
-            <div class="row">
-                <div class="form-group col-md-12">
-                    <label class="control-label">住址</label>
-                    <textarea class="form-control" rows="3" id="Address" name="Address">@PatientViewModel.Address</textarea>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="form-group col-md-3">
-                    <label class="control-label">是否住院</label>
-                    <select class="form-control" id="IsHospitalized" name="IsHospitalized" onchange="toggleHospitalized(this.value)">
-                        <option value="">請下拉選單</option>
-                        <option value="Y" selected="@(PatientViewModel.IsHospitalized == "Y")">是</option>
-                        <option value="N" selected="@(PatientViewModel.IsHospitalized == "N")">否</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="hospitalizedDateRow" class="row" style="display:@(PatientViewModel.IsHospitalized == "Y" ? "flex" : "none");">
-
-                <div class="form-group col-md-3">
-                    <label class="control-label">入院日期</label>
-                    <input type="date" class="form-control" id="AdmitDate" name="admitDate"
-                           value="@(PatientViewModel.AdmitDate.HasValue? PatientViewModel.AdmitDate.Value.ToString("yyyy-MM-dd") : "")">
-                </div>
-
-                <div class="form-group col-md-3">
-                    <label class="control-label">出院日期</label>
-                    <input type="date" class="form-control" id="DischargeDate" name="dischargeDate"
-                           value="@(PatientViewModel.DischargeDate.HasValue? PatientViewModel.DischargeDate.Value.ToString("yyyy-MM-dd") : "")">
-                </div>
-            </div>
-
-
-            <div class="row">
-                <div class="form-group col-md-3">
-                    <label class="control-label">出院狀況</label>
-                    @Html.DropDownList("DischargeStatus", dischargeStatusOptions, new { @class = "form-control", onchange = "toggleTransferHospital(this.value)", id = "DischargeStatus" })
-                    <div id="transferHospitalRow" class="form-group mt-2" style="display: @(PatientViewModel.DischargeStatus == "轉院" ? "block" : "none");">
-                        <label class="control-label">轉院院名</label>
-                        <input type="text" class="form-control" id="TransferHospital" name="transferHospital" value="@PatientViewModel.TransferHospital">
-                    </div>
-                </div>
-            </div>
+            <span id="noData" class="empty-note" style="display: none">查無資料</span>
         </div>
     </div>
-    <div class="modal-footer">
-        <button type ="button" class="btn btn-primary" id="submitButton" style="display: none" onclick="Submit()">儲存</button>
+
+<div id="editForm" class="card-panel form-panel" style="display: none">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <p class="eyebrow mb-1">編輯 / 新增</p>
+                <h2 class="section-title mb-0">病人資料</h2>
+                <p class="section-subtitle">完整欄位輸入，動態顯示住院與轉院資訊</p>
+            </div>
+        </div>
+
+        <div class="row g-3" style="display: none">
+            <div class="form-group col-md-12">
+                <label class="control-label">病歷號</label>
+                <input type="text" class="form-control" id="PatientId" name="PatientId" value="@PatientViewModel.PatientId" placeholder="系統自動帶入">
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="form-group col-md-6">
+                <label class="control-label">姓</label>
+                <input type="text" class="form-control" id="FamilyName" name="FamilyName" value="@PatientViewModel.FamilyName" placeholder="例：王">
+            </div>
+            <div class="form-group col-md-6">
+                <label class="control-label">名</label>
+                <input type="text" class="form-control" id="GivenName" name="GivenName" value="@PatientViewModel.GivenName" placeholder="例：小明">
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="form-group col-md-3">
+                <label class="control-label">身分證字號</label>
+                <input type="text" class="form-control" id="IdNo" name="IdNo" value="@PatientViewModel.IdNo" placeholder="A123456789">
+            </div>
+            <div class="form-group col-md-3">
+                <label class="control-label">生日</label>
+                <input type="date" class="form-control" id="Birthday" name="Birthday" value="@(PatientViewModel.Birthday == DateTime.MinValue ? "" : PatientViewModel.Birthday.ToString("yyyy-MM-dd"))">
+            </div>
+            <div class="form-group col-md-3">
+                <label>性別</label>
+                @Html.DropDownList("group", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
+            </div>
+            <div class="form-group col-md-3">
+                <label class="control-label">聯絡電話</label>
+                <input type="text" class="form-control" id="Telecom" name="Telecom" value="@PatientViewModel.Telecom" placeholder="手機或市話">
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="form-group col-md-12">
+                <label class="control-label">住址</label>
+                <textarea class="form-control" rows="3" id="Address" name="Address" placeholder="例：台北市中正區仁愛路一段">@PatientViewModel.Address</textarea>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="form-group col-md-3">
+                <label class="control-label">是否住院</label>
+                <select class="form-control" id="IsHospitalized" name="IsHospitalized" onchange="toggleHospitalized(this.value)">
+                    <option value="">請下拉選單</option>
+                    <option value="Y" selected="@(PatientViewModel.IsHospitalized == "Y")">是</option>
+                    <option value="N" selected="@(PatientViewModel.IsHospitalized == "N")">否</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="hospitalizedDateRow" class="row g-3" style="display:@(PatientViewModel.IsHospitalized == "Y" ? "flex" : "none");">
+            <div class="form-group col-md-3">
+                <label class="control-label">入院日期</label>
+                <input type="date" class="form-control" id="AdmitDate" name="admitDate"
+                       value="@(PatientViewModel.AdmitDate.HasValue? PatientViewModel.AdmitDate.Value.ToString("yyyy-MM-dd") : "")">
+            </div>
+
+            <div class="form-group col-md-3">
+                <label class="control-label">出院日期</label>
+                <input type="date" class="form-control" id="DischargeDate" name="dischargeDate"
+                       value="@(PatientViewModel.DischargeDate.HasValue? PatientViewModel.DischargeDate.Value.ToString("yyyy-MM-dd") : "")">
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="form-group col-md-3">
+                <label class="control-label">出院狀況</label>
+                @Html.DropDownList("DischargeStatus", dischargeStatusOptions, new { @class = "form-control", onchange = "toggleTransferHospital(this.value)", id = "DischargeStatus" })
+                <div id="transferHospitalRow" class="form-group mt-2" style="display: @(PatientViewModel.DischargeStatus == "轉院" ? "block" : "none");">
+                    <label class="control-label">轉院院名</label>
+                    <input type="text" class="form-control" id="TransferHospital" name="transferHospital" value="@PatientViewModel.TransferHospital" placeholder="轉往醫院名稱">
+                </div>
+            </div>
+        </div>
+
+        <div class="action-bar d-flex justify-content-end">
+            <button type ="button" class="btn btn-primary btn-sm" id="submitButton" style="display: none" onclick="Submit()">儲存</button>
+        </div>
     </div>
 </div>
 <script>
@@ -181,7 +204,55 @@
         }
 </script>
 <script>
-    
+    const renderHospitalizedBadge = (value) => {
+        if (value === "Y") {
+            return '<span class="badge-chip success">住院</span>';
+        }
+        if (value === "N") {
+            return '<span class="badge-chip muted">未住院</span>';
+        }
+        return '<span class="badge-chip muted">N/A</span>';
+    };
+
+    const renderDischargeBadge = (value) => {
+        switch (value) {
+            case "治癒":
+            case "病情改善":
+                return `<span class="badge-chip success">${value}</span>`;
+            case "轉院":
+                return `<span class="badge-chip info">${value}</span>`;
+            case "不變":
+                return `<span class="badge-chip warning">${value}</span>`;
+            case "死亡":
+                return `<span class="badge-chip danger">${value}</span>`;
+            default:
+                return `<span class="badge-chip muted">${value || "N/A"}</span>`;
+        }
+    };
+
+    function showToast(message, type = "info") {
+        let holder = document.getElementById("toast-holder");
+        if (!holder) {
+            holder = document.createElement("div");
+            holder.id = "toast-holder";
+            document.body.appendChild(holder);
+        }
+
+        const toast = document.createElement("div");
+        toast.className = `toast-banner ${type}`;
+        toast.innerText = message;
+        holder.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add("show");
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove("show");
+            setTimeout(() => toast.remove(), 200);
+        }, 2600);
+    }
+
     function Search() {
         $.ajax({
             url: '@Url.Content("~/Patient/Search")',
@@ -203,14 +274,14 @@
                     document.getElementById('noData').style.display = "none";
 
                     SearchList(result);
-                }
-                else {
+                } else {
+                    showToast("查無資料，請調整條件再試", "warning");
                     document.getElementById('patientList').style.display = "none";
                     document.getElementById('noData').style.display = "block";
                 }
             },
             error: function (err) {
-                alert(err.responseText);
+                showToast(err.responseText || "查詢失敗，請稍後再試", "danger");
             }
         });
     };
@@ -249,7 +320,7 @@
             cell6.innerHTML = new Date(result[i].birthday).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
             // 是否住院
-            cell7.innerHTML = result[i].isHospitalized === 'Y' ? '是' : (result[i].isHospitalized === 'N' ? '否' : 'N/A'); // 👈 調整 IsHospitalized
+            cell7.innerHTML = renderHospitalizedBadge(result[i].isHospitalized); // 👈 調整 IsHospitalized
 
             // 轉換日期格式，如果日期是 MinValue 則顯示 N/A
             const formatIfValid = (dateString) => {
@@ -263,7 +334,7 @@
 
             cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
             cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
-            cell10.innerHTML = result[i].dischargeStatus;
+            cell10.innerHTML = renderDischargeBadge(result[i].dischargeStatus);
             cell11.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
 
             // 最右邊匯出FHIR按鈕
@@ -311,13 +382,13 @@
                     document.getElementById('submitButton').style.display = "none";
 
                     Search();
-                    alert("儲存成功");
+                    showToast("儲存成功", "success");
                     return;
                 }
-                alert(result.Error);
+                showToast(result.Error || "儲存失敗", "danger");
             },
             error: function (err) {
-                alert(err.responseText);
+                showToast(err.responseText || "儲存失敗，請稍後再試", "danger");
             }
         });
     };
@@ -370,10 +441,10 @@
                     }
                     return;
                 }
-                alert(result.message);
+                showToast(result.message || "查詢失敗", "danger");
             },
             error: function (err) {
-                alert(err.responseText);
+                showToast(err.responseText || "查詢失敗，請稍後再試", "danger");
             }
         });
     };
@@ -388,13 +459,13 @@
             success: function (result){
                 if(result){
                     Search();
-                    alert("刪除成功");
+                    showToast("刪除成功", "success");
                     return;
                 }
-                alert(result.message);
+                showToast(result.message || "刪除失敗", "danger");
             },
             error: function(err){
-                alert(err.responseText);
+                showToast(err.responseText || "刪除失敗，請稍後再試", "danger");
             }
         });
     };

@@ -153,13 +153,15 @@
             <div class="form-group col-md-3">
                 <label class="control-label">入院日期</label>
                 <input type="date" class="form-control" id="AdmitDate" name="admitDate"
-                       value="@(PatientViewModel.AdmitDate.HasValue? PatientViewModel.AdmitDate.Value.ToString("yyyy-MM-dd") : "")">
+                       value="@(PatientViewModel.AdmitDate.HasValue? PatientViewModel.AdmitDate.Value.ToString("yyyy-MM-dd") : "")"
+                       onchange="validateAdmitDischargeDates()">
             </div>
 
             <div class="form-group col-md-3">
                 <label class="control-label">出院日期</label>
                 <input type="date" class="form-control" id="DischargeDate" name="dischargeDate"
-                       value="@(PatientViewModel.DischargeDate.HasValue? PatientViewModel.DischargeDate.Value.ToString("yyyy-MM-dd") : "")">
+                       value="@(PatientViewModel.DischargeDate.HasValue? PatientViewModel.DischargeDate.Value.ToString("yyyy-MM-dd") : "")"
+                       onchange="validateAdmitDischargeDates()">
             </div>
         </div>
 
@@ -187,11 +189,49 @@
 
         if (value === "Y") {
             row.style.display = "flex";
+
+             if (admit.value === "") {
+                admit.value = new Date().toLocaleDateString('en-CA');
+    ;
+            }
+            if (discharge.value === "") {
+                discharge.value = new Date().toLocaleDateString('en-CA');
+    ;
+            }
+
+
         } else {
             row.style.display = "none";
             // 清空日期
-            admit.value = "";
-            discharge.value = "";
+
+        }
+    }
+        // 檢查出院日期是否小於入院日期
+    function validateAdmitDischargeDates() {
+        const admitDateInput = document.getElementById("AdmitDate");
+        const dischargeDateInput = document.getElementById("DischargeDate");
+        const submitButton = document.getElementById("submitButton");
+
+        // 如果 IsHospitalized 不是 'Y' 或日期沒有值，則不執行檢查
+        if (document.getElementById("IsHospitalized").value !== "Y" || !admitDateInput.value || !dischargeDateInput.value) {
+            submitButton.disabled = false; // 確保按鈕可用
+            return;
+        }
+
+        const admitDate = new Date(admitDateInput.value);
+        const dischargeDate = new Date(dischargeDateInput.value);
+
+        // 比較時間戳記
+        if (dischargeDate.getTime() < admitDate.getTime()) {
+            // 檢查失敗
+            showToast("出院日期不可早於入院日期，請重新選擇。", "danger");
+            submitButton.disabled = true; // 禁用儲存按鈕
+            dischargeDateInput.focus(); // 將焦點移回出院日期
+            return false;
+        } else {
+            // 檢查成功
+            submitButton.disabled = false; // 啟用儲存按鈕
+            return true;
         }
     }
 </script>
@@ -349,6 +389,7 @@
         if (dischargeStatus !== "轉院") {
             transferHospital = "";
         }
+        var dischargeStatus = document.getElementById("DischargeStatus").value;
 
         var formData = {
             PatientId: document.getElementById("PatientId").value,
@@ -368,6 +409,16 @@
         }
 
         console.log('formData', formData);
+
+        // 只有在 IsHospitalized 為 'Y' 且日期都存在時才進行最終檢查
+        if (document.getElementById("IsHospitalized").value === "Y" &&
+            document.getElementById("AdmitDate").value &&
+            document.getElementById("DischargeDate").value) {
+
+            if (!validateAdmitDischargeDates()) {
+                return; // 如果驗證失敗，則停止送出
+            }
+        }
 
         $.ajax({
             url: '@Url.Content("~/Patient/Save")',
@@ -396,6 +447,8 @@
     function Add() {
         document.getElementById('editForm').style.display = "block";
         document.getElementById('submitButton').style.display = "block";
+        // 取得今天的日期，格式為 YYYY-MM-DD
+        const today = new Date().toLocaleDateString('en-CA');
 
         document.getElementById("PatientId").value = 0;
         document.getElementById("FamilyName").value = "";
@@ -406,6 +459,10 @@
         document.getElementById("Telecom").value = "";
         document.getElementById("Address").value = "";
         document.getElementById("IsHospitalized").value = ""; // 👈 初始為空（請下拉選單）
+        
+        document.getElementById("AdmitDate").value = new Date().toLocaleDateString('en-CA');       // 👈 新增/修改這行
+        document.getElementById("DischargeDate").value = new Date().toLocaleDateString('en-CA');    // 👈 新增/修改這行
+
         toggleHospitalized(""); // 👈 隱藏入院/出院日期
         document.getElementById("DischargeStatus").value = "";
         toggleTransferHospital("");

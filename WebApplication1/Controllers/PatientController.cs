@@ -123,7 +123,6 @@ namespace WebApplication1.Controllers
         [HttpGet]
         public IActionResult ExportFHIR(long patientId)
         {
-            // 用你原本的查詢方法抓資料
             var patientList = QueryPatientList(patientId).Result;
 
             if (patientList == null || patientList.Count == 0)
@@ -132,44 +131,102 @@ namespace WebApplication1.Controllers
             }
 
             var p = patientList.First();
-            // 在函式內定義並格式化，處理空值
+
+            // 這裡要確保 DateTime? 真的會是 null，而不是 MinValue（下面會改 QueryPatientList）
             var admitDateString = p.AdmitDate.HasValue ? p.AdmitDate.Value.ToString("yyyy-MM-dd") : null;
             var dischargeDateString = p.DischargeDate.HasValue ? p.DischargeDate.Value.ToString("yyyy-MM-dd") : null;
 
-            // 這裡做一個「簡化版」FHIR Patient 資源
+            // 先用 List<object> 動態組 extension，避免空值也被輸出
+            var extensions = new List<object>();
+
+            if (!string.IsNullOrWhiteSpace(p.IsHospitalized))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-isHospitalized", // TODO: 換成你自己的 URL
+                    valueString = p.IsHospitalized
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(admitDateString))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-admitDate",     // TODO
+                    valueDateTime = admitDateString                                                // 用 dateTime 比 valueString 更合理
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dischargeDateString))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-dischargeDate", // TODO
+                    valueDateTime = dischargeDateString
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(p.DischargeStatus))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-dischargeStatus", // TODO
+                    valueString = p.DischargeStatus
+                });
+            }
+
+            // 🔴 重點：只有在有值的時候才加 transferHospital 這個 extension
+            if (!string.IsNullOrWhiteSpace(p.TransferHospital))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-transferHospital", // TODO
+                    valueString = p.TransferHospital
+                });
+            }
+
             var fhirPatient = new
             {
                 resourceType = "Patient",
                 id = p.PatientId.ToString(),
                 active = p.Active,
+
+                // （可選）加 narrative，解掉 dom-6 警告
+                text = new
+                {
+                    status = "generated",
+                    div = $"<div xmlns=\"http://www.w3.org/1999/xhtml\">病人：{p.FamilyName}{p.GivenName}（ID：{p.IdNo}）</div>"
+                },
+
                 identifier = new[]
                 {
-            new
-            {
-                use = "official",
-                system = "http://example.org/hospital/patient/idno",
-                value = p.IdNo
-            }
-        },
+                    new
+                    {
+                        use = "official",
+                        // 身分證字號 namespace，TW Core Patient-DS 建議使用 http://www.moi.gov.tw
+                        system = "http://www.moi.gov.tw",
+                        value = p.IdNo
+                    }
+                },
                 name = new[]
                 {
-            new
-            {
-                use = "official",
-                family = p.FamilyName,
-                given = new[] { p.GivenName }
-            }
-        },
+                    new
+                    {
+                        use = "official",
+                        family = p.FamilyName,
+                        given = new[] { p.GivenName }
+                    }
+                },
                 telecom = string.IsNullOrWhiteSpace(p.Telecom)
                     ? null
                     : new[]
                     {
-                new
-                {
-                    system = "phone",
-                    value = p.Telecom,
-                    use = "mobile"
-                }
+                        new
+                        {
+                            system = "phone",
+                            value = p.Telecom,
+                            use = "mobile"
+                        }
                     },
                 gender = p.Gender == "M" ? "male" : "female",
                 birthDate = p.Birthday.ToString("yyyy-MM-dd"),
@@ -177,41 +234,14 @@ namespace WebApplication1.Controllers
                     ? null
                     : new[]
                     {
-                new
-                {
-                    text = p.Address
-                }
+                        new
+                        {
+                            text = p.Address
+                        }
                     },
-                // 下面這些其實比較像 Encounter 的欄位，這裡先用 extension 放進去
-                extension = new[]
-{
 
-    new
-    {
-        url = "[http://example.org/fhir/StructureDefinition/isHospitalized](http://example.org/fhir/StructureDefinition/isHospitalized)",
-        valueString = p.IsHospitalized // 👈 新增 IsHospitalized
-    },
-    new
-    {
-        url = "http://example.org/fhir/StructureDefinition/admitDate",
-        valueString = admitDateString // ✅ 現在使用正確處理後的區域變數
-    },
-    new
-    {
-        url = "http://example.org/fhir/StructureDefinition/dischargeDate",
-        valueString = dischargeDateString // ✅ 現在使用正確處理後的區域變數
-    },
-    new
-    {
-        url = "http://example.org/fhir/StructureDefinition/dischargeStatus",
-        valueString = p.DischargeStatus
-    },
-    new
-    {
-        url = "http://example.org/fhir/StructureDefinition/transferHospital",
-        valueString = p.TransferHospital
-    }
-}
+                // 如果沒有任何 extension，就不要輸出這個欄位（避免出現 extension: []）
+                extension = extensions.Count > 0 ? extensions : null
             };
 
             var json = JsonSerializer.Serialize(
@@ -222,9 +252,10 @@ namespace WebApplication1.Controllers
             var bytes = Encoding.UTF8.GetBytes(json);
             var fileName = $"Patient-{p.PatientId}.json";
 
-            // Content-Type 用 application/fhir+json
             return File(bytes, "application/fhir+json", fileName);
         }
+
+
 
         #region SQL
         public Task<long> InsertPatient(PatientDBModel patient)
@@ -357,10 +388,22 @@ namespace WebApplication1.Controllers
                         Birthday = reader.GetDateTime(reader.GetOrdinal("Birthday")),
                         Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
                         IsHospitalized = reader.GetString(reader.GetOrdinal("IsHospitalized")),
-                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
-                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
-                        DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("DischargeStatus")),
-                        TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferHospital")),
+                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate"))
+                            ? (DateTime?)null
+                            : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
+
+                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate"))
+                            ? (DateTime?)null
+                            : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
+
+                        DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus"))
+                            ? null
+                            : reader.GetString(reader.GetOrdinal("DischargeStatus")),
+
+                        TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital"))
+                            ? null
+                            : reader.GetString(reader.GetOrdinal("TransferHospital")),
+
                     };
 
                     result.Add(patient);

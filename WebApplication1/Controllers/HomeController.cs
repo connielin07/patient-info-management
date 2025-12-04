@@ -15,6 +15,14 @@ namespace WebApplication1.Controllers
 
         public IActionResult Index()
         {
+            var tomCat = new Cat
+            {
+                Name = "Tom",
+                Color = "Gray",
+                Weight = 4
+            };
+
+            tomCat.Yell();
             return View();
         }
 

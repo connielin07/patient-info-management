@@ -67,25 +67,19 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost]
-        public IActionResult Search(long? patientId, string? idNo, string? familyName, string? givenName, int page = 1, int pageSize = 20)
+        public IActionResult Search(long? patientId, string? idNo, string? familyName, string? givenName)
         {
             try
             {
-                page = Math.Max(1, page);
-                pageSize = Math.Clamp(pageSize, 5, 100);
-
-                var pagedResult = QueryPatientListPaged(patientId, idNo, familyName, givenName, null, null, page, pageSize).Result;
-                var resultList = pagedResult.Items.Select(ConvertPatientDBModeltoViewModel).ToList();
-
-                var response = new PagedResult<PatientViewModel>
+                var resultList = new List<PatientViewModel>();
+                var dbResult = QueryPatientList(patientId, idNo, familyName, givenName).Result;
+                if (dbResult.Count() >= 0)
                 {
-                    Items = resultList,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalCount = pagedResult.TotalCount
-                };
+                    resultList = dbResult.Select(ConvertPatientDBModeltoViewModel).ToList();
+                    return Ok(resultList);
+                }
 
-                return Ok(response);
+                return BadRequest("查詢失敗");
             }
             catch (Exception ex)
             {
@@ -305,122 +299,6 @@ namespace WebApplication1.Controllers
             }
 
             return Task.FromResult(insertId);
-        }
-
-        public Task<(List<PatientDBModel> Items, int TotalCount)> QueryPatientListPaged(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null, int page = 1, int pageSize = 20)
-        {
-            var result = new List<PatientDBModel>();
-            var totalCount = 0;
-            var connection = new SqlConnection(ConnStr);
-            var param = new List<SqlParameter>();
-            var baseQuery = @"FROM DB1.dbo.Patient
-                            WHERE 1=1 ";
-
-            baseQuery += " AND Active = @Active";
-            param.Add(new SqlParameter("@Active", true));
-
-            if (patientId != null)
-            {
-                baseQuery += " AND PatientId = @PatientId ";
-                param.Add(new SqlParameter("@PatientId", patientId));
-            }
-
-            if (idNo != null)
-            {
-                baseQuery += " AND IdNo = @IdNo ";
-                param.Add(new SqlParameter("@IdNo", idNo));
-            }
-
-            if (familyName != null)
-            {
-                baseQuery += " AND FamilyName LIKE '%' + @FamilyName + '%'";
-                param.Add(new SqlParameter("@FamilyName", familyName));
-            }
-
-            if (givenName != null)
-            {
-                baseQuery += " AND GivenName LIKE '%' + @GivenName + '%'";
-                param.Add(new SqlParameter("@GivenName", givenName));
-            }
-
-            if (dischargeStatus != null)
-            {
-                baseQuery += " AND DischargeStatus = @DischargeStatus ";
-                param.Add(new SqlParameter("@DischargeStatus", dischargeStatus));
-            }
-
-            if (transferHospital != null)
-            {
-                baseQuery += " AND TransferHospital = @TransferHospital ";
-                param.Add(new SqlParameter("@TransferHospital", transferHospital));
-            }
-
-            var countSql = $"SELECT COUNT(1) {baseQuery}";
-            var queryStr = @$"SELECT PatientId
-                                    , IdNo
-                                    , Active
-                                    , FamilyName
-                                    , GivenName
-                                    , Telecom
-                                    , Gender
-                                    , Birthday
-                                    , Address
-                                    , IsHospitalized
-                                    , AdmitDate
-                                    , DischargeDate
-                                    , DischargeStatus
-                                    , TransferHospital
-                            {baseQuery}
-                            ORDER BY PatientId
-                            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-            var countCommand = new SqlCommand(countSql, connection);
-            var dataCommand = new SqlCommand(queryStr, connection);
-
-            foreach (var p in param)
-            {
-                countCommand.Parameters.Add(new SqlParameter(p.ParameterName, p.Value));
-                dataCommand.Parameters.Add(new SqlParameter(p.ParameterName, p.Value));
-            }
-
-            dataCommand.Parameters.Add(new SqlParameter("@Offset", (page - 1) * pageSize));
-            dataCommand.Parameters.Add(new SqlParameter("@PageSize", pageSize));
-
-            connection.Open();
-            var scalar = countCommand.ExecuteScalar();
-            totalCount = scalar == null ? 0 : Convert.ToInt32(scalar);
-
-            var reader = dataCommand.ExecuteReader();
-
-            if (reader.HasRows)
-            {
-                while (reader.Read())
-                {
-                    var patient = new PatientDBModel
-                    {
-                        PatientId = reader.GetInt64(reader.GetOrdinal("PatientId")),
-                        IdNo = reader.GetString(reader.GetOrdinal("IdNo")),
-                        Active = reader.GetBoolean(reader.GetOrdinal("Active")),
-                        FamilyName = reader.GetString(reader.GetOrdinal("FamilyName")),
-                        GivenName = reader.GetString(reader.GetOrdinal("GivenName")),
-                        Telecom = reader.IsDBNull(reader.GetOrdinal("Telecom")) ? string.Empty : reader.GetString(reader.GetOrdinal("Telecom")),
-                        Gender = reader.GetString(reader.GetOrdinal("Gender")),
-                        Birthday = reader.GetDateTime(reader.GetOrdinal("Birthday")),
-                        Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
-                        IsHospitalized = reader.GetString(reader.GetOrdinal("IsHospitalized")),
-                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
-                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
-                        DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("DischargeStatus")),
-                        TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferHospital")),
-                    };
-
-                    result.Add(patient);
-                }
-            }
-
-            connection.Close();
-
-            return Task.FromResult((result, totalCount));
         }
 
         public Task<List<PatientDBModel>> QueryPatientList(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null)

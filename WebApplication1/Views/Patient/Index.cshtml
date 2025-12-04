@@ -52,7 +52,7 @@
         </div>
     </div>
 
-    <div class="card-panel table-panel">
+    <div class="card-panel table-panel" id="resultPanel" style="display:none">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div>
                 <p class="eyebrow mb-1">結果</p>
@@ -83,6 +83,25 @@
         </div>
         <div>
             <span id="noData" class="empty-note" style="display: none">查無資料</span>
+        </div>
+        <div id="pager" class="d-flex align-items-center gap-2 flex-wrap mt-3" style="display:none">
+            <div class="d-flex align-items-center gap-1">
+                <label for="pageSizeInput" class="mb-0">每頁顯示筆數</label>
+                <input type="number" id="pageSizeInput" class="form-control form-control-sm" value="20" min="5" max="100" style="width:80px" onchange="setPageSizeFromInput()">
+            </div>
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="firstPage" onclick="setPage(1)">« 首頁</button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="prevPage" onclick="changePage(-1)">上一頁</button>
+                <span id="pageNumbers" class="d-flex align-items-center gap-1"></span>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="nextPage" onclick="changePage(1)">下一頁</button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="lastPage" onclick="setPage(currentTotalPages)">末頁 »</button>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <label for="gotoPageInput" class="mb-0">跳至頁數</label>
+                <input type="number" id="gotoPageInput" class="form-control form-control-sm" value="1" min="1" style="width:80px">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="gotoPage()">前往</button>
+            </div>
+            <span class="text-muted" id="pageInfo"></span>
         </div>
     </div>
 
@@ -290,7 +309,89 @@
         }, 2600);
     }
 
+    let currentPage = 1;
+    let pageSize = 20;
+    let totalCount = 0;
+    let currentTotalPages = 1;
+
+    function changePage(delta) {
+        setPage(currentPage + delta);
+    }
+
+    function setPage(targetPage) {
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const newPage = Math.min(totalPages, Math.max(1, targetPage));
+        if (newPage !== currentPage) {
+            currentPage = newPage;
+            document.getElementById("gotoPageInput").value = currentPage;
+            Search();
+        }
+    }
+
+    function gotoPage() {
+        const val = parseInt(document.getElementById("gotoPageInput").value, 10);
+        if (!isNaN(val)) {
+            const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+            const target = Math.min(totalPages, Math.max(1, val));
+            setPage(target);
+        }
+    }
+
+    function clampPageSize(val) {
+        if (isNaN(val)) return 20;
+        return Math.min(100, Math.max(5, val));
+    }
+
+    function setPageSizeFromInput() {
+        const input = document.getElementById("pageSizeInput");
+        pageSize = clampPageSize(parseInt(input.value, 10));
+        input.value = pageSize;
+        currentPage = 1;
+        document.getElementById("gotoPageInput").value = currentPage;
+        Search();
+    }
+
+    function renderPageNumbers(totalPages) {
+        const container = document.getElementById("pageNumbers");
+        container.innerHTML = "";
+        const start = Math.max(1, currentPage - 2);
+        const end = Math.min(totalPages, currentPage + 2);
+
+        for (let p = start; p <= end; p++) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-sm " + (p === currentPage ? "btn-primary" : "btn-outline-primary");
+            btn.innerText = p;
+            btn.disabled = p === currentPage;
+            btn.onclick = () => setPage(p);
+            container.appendChild(btn);
+        }
+    }
+
+    function updatePager() {
+        const pager = document.getElementById("pager");
+        const info = document.getElementById("pageInfo");
+        const prev = document.getElementById("prevPage");
+        const next = document.getElementById("nextPage");
+        const first = document.getElementById("firstPage");
+        const last = document.getElementById("lastPage");
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        currentTotalPages = totalPages;
+
+        pager.style.display = totalCount > 0 ? "flex" : "none";
+        info.innerText = `第 ${currentPage} / ${totalPages} 頁，共 ${totalCount} 筆`;
+        prev.disabled = currentPage <= 1;
+        next.disabled = currentPage >= totalPages;
+        first.disabled = currentPage <= 1;
+        last.disabled = currentPage >= totalPages;
+        renderPageNumbers(totalPages);
+    }
+
     function Search() {
+        const resultPanel = document.getElementById('resultPanel');
+        const pageSizeInput = document.getElementById("pageSizeInput");
+        pageSize = clampPageSize(parseInt(pageSizeInput.value, 10));
+        pageSizeInput.value = pageSize;
         $.ajax({
             url: '@Url.Content("~/Patient/Search")',
             method: 'POST',
@@ -303,18 +404,31 @@
                 admitDate: document.querySelector('input[name="admitDate"]').value,
                 dischargeDate: document.querySelector('input[name="dischargeDate"]').value,
                 dischargeStatus: document.getElementById("DischargeStatus").value,
-                transferHospital: document.querySelector('input[name="transferHospital"]') ? document.querySelector('input[name="transferHospital"]').value : ""
+                transferHospital: document.querySelector('input[name="transferHospital"]') ? document.querySelector('input[name="transferHospital"]').value : "",
+                page: currentPage,
+                pageSize: pageSize
             },
             success: function (result) {
-                if (Array.isArray(result) && result.length > 0) {
+                // 後端回傳 PagedResult，兼容舊格式陣列
+                const items = Array.isArray(result) ? result : (result.items || []);
+                totalCount = result.totalCount ?? items.length;
+                currentPage = result.page ?? currentPage;
+                pageSize = result.pageSize ?? pageSize;
+
+                if (items.length > 0) {
+                    resultPanel.style.display = "block";
                     document.getElementById('patientList').style.display = "block";
                     document.getElementById('noData').style.display = "none";
 
-                    SearchList(result);
+                    SearchList(items);
+                    updatePager();
                 } else {
                     showToast("查無資料，請調整條件再試", "warning");
+                    resultPanel.style.display = "block";
                     document.getElementById('patientList').style.display = "none";
                     document.getElementById('noData').style.display = "block";
+                    totalCount = 0;
+                    updatePager();
                 }
             },
             error: function (err) {
@@ -473,25 +587,26 @@
                 patientId: id
             },
             success: function (result) {
-                if (result) {
+                if (result && result.items && result.items.length > 0) {
                     document.getElementById('editForm').style.display = "block";
                     document.getElementById('submitButton').style.display = "block";
 
-                    document.getElementById("PatientId").value = result[0].patientId;
-                    document.getElementById("FamilyName").value = result[0].familyName;
-                    document.getElementById("GivenName").value = result[0].givenName;
-                    document.getElementById("IdNo").value = result[0].idNo;
-                    document.getElementById("Birthday").value = new Date(result[0].birthday).toLocaleDateString('en-CA');
-                    document.getElementById("Gender").value = result[0].gender;
-                    document.getElementById("Telecom").value = result[0].telecom;
-                    document.getElementById("Address").value = result[0].address;
-                    document.getElementById("IsHospitalized").value = result[0].isHospitalized;
-                    document.getElementById("AdmitDate").value = new Date(result[0].admitDate).toLocaleDateString('en-CA');
-                    document.getElementById("DischargeDate").value = new Date(result[0].dischargeDate).toLocaleDateString('en-CA');
-                    document.getElementById("DischargeStatus").value = result[0].dischargeStatus;
-                    toggleTransferHospital(result[0].dischargeStatus);
-                    if (result[0].dischargeStatus === "轉院") {
-                        document.getElementById("TransferHospital").value = result[0].transferHospital;
+                    const item = result.items[0];
+                    document.getElementById("PatientId").value = item.patientId;
+                    document.getElementById("FamilyName").value = item.familyName;
+                    document.getElementById("GivenName").value = item.givenName;
+                    document.getElementById("IdNo").value = item.idNo;
+                    document.getElementById("Birthday").value = new Date(item.birthday).toLocaleDateString('en-CA');
+                    document.getElementById("Gender").value = item.gender;
+                    document.getElementById("Telecom").value = item.telecom;
+                    document.getElementById("Address").value = item.address;
+                    document.getElementById("IsHospitalized").value = item.isHospitalized;
+                    document.getElementById("AdmitDate").value = new Date(item.admitDate).toLocaleDateString('en-CA');
+                    document.getElementById("DischargeDate").value = new Date(item.dischargeDate).toLocaleDateString('en-CA');
+                    document.getElementById("DischargeStatus").value = item.dischargeStatus;
+                    toggleTransferHospital(item.dischargeStatus);
+                    if (item.dischargeStatus === "轉院") {
+                        document.getElementById("TransferHospital").value = item.transferHospital;
                     }
                     return;
                 }

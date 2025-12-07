@@ -60,6 +60,11 @@ namespace WebApplication1.Controllers
 
                 return BadRequest(dbResult);
             }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
+            {
+                string errorMessage = "身分證字號重複：該身分證字號已經存在於資料庫中。";
+                return Content(errorMessage, "text/plain"); 
+            }
             catch (Exception ex)
             {
                 return Json(new { Status = "Error", Error = ex.Message });

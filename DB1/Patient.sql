@@ -13,5 +13,7 @@
 	[AdmitDate] DATE NULL,
 	[DischargeDate] DATE NULL,
 	[DischargeStatus] NVARCHAR(20) NULL,
+	[OtherDischargeStatus] NVARCHAR(100) NULL,
+	[AdmitHospital] NVARCHAR(100) NULL,
 	[TransferHospital] NVARCHAR(100) NULL
 )

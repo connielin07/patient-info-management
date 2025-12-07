@@ -9,7 +9,8 @@
         new SelectListItem { Text = "病情改善", Value = "病情改善", Selected = PatientViewModel.DischargeStatus == "病情改善" },
         new SelectListItem { Text = "不變", Value = "不變", Selected = PatientViewModel.DischargeStatus == "不變" },
         new SelectListItem { Text = "轉院", Value = "轉院", Selected = PatientViewModel.DischargeStatus == "轉院" },
-        new SelectListItem { Text = "死亡", Value = "死亡", Selected = PatientViewModel.DischargeStatus == "死亡" }
+        new SelectListItem { Text = "死亡", Value = "死亡", Selected = PatientViewModel.DischargeStatus == "死亡" },
+        new SelectListItem { Text = "其他", Value = "其他", Selected = PatientViewModel.DischargeStatus == "其他" }
     };
 }
 
@@ -74,6 +75,8 @@
                         <th>入院日期</th>
                         <th>出院日期</th>
                         <th>出院狀況</th>
+                        <th>其他出院狀況</th>
+                        <th>入院院名</th>
                         <th>轉院院名</th>
                         <th>匯出FHIR</th>
                     </tr>
@@ -184,11 +187,24 @@
         <div class="row g-3">
             <div class="form-group col-md-3">
                 <label class="control-label">出院狀況</label>
-                @Html.DropDownList("DischargeStatus", dischargeStatusOptions, new { @class = "form-control", onchange = "toggleTransferHospital(this.value)", id = "DischargeStatus" })
-                <div id="transferHospitalRow" class="form-group mt-2" style="display: @(PatientViewModel.DischargeStatus == "轉院" ? "block" : "none");">
-                    <label class="control-label">轉院院名</label>
-                    <input type="text" class="form-control" id="TransferHospital" name="transferHospital" value="@PatientViewModel.TransferHospital" placeholder="轉往醫院名稱">
-                </div>
+                @Html.DropDownList("DischargeStatus", dischargeStatusOptions, new { @class = "form-control", onchange = "toggleDischargeDetails(this.value)", id = "DischargeStatus" })
+            </div>
+        </div>
+
+        <div id="dischargeDetailsRow" class="row g-3 mt-3" style="display: none;">
+            <div class="form-group col-md-4 col-sm-6" id="AdmitHospitalGroup" style="display:none">
+                <label class="form-label">入院院名</label>
+                <input type="text" class="form-control" id="AdmitHospital" name="AdmitHospital" value="@PatientViewModel.AdmitHospital" placeholder="請輸入入院醫院名稱">
+            </div>
+
+            <div class="form-group col-md-4 col-sm-6" id="TransferHospitalGroup" style="display:none">
+                <label class="form-label">轉院院名</label>
+                <input type="text" class="form-control" id="TransferHospital" name="TransferHospital" value="@PatientViewModel.TransferHospital" placeholder="請輸入轉院醫院名稱">
+            </div>
+
+            <div class="form-group col-md-4 col-sm-6" id="OtherDischargeStatusGroup" style="display:none">
+                <label class="form-label">其他出院狀況</label>
+                <input type="text" class="form-control" id="OtherDischargeStatus" name="OtherDischargeStatus" value="@PatientViewModel.OtherDischargeStatus" placeholder="請輸入其他出院狀況">
             </div>
         </div>
 
@@ -222,7 +238,7 @@
 
         }
     }
-        // 檢查出院日期是否小於入院日期
+    // 檢查出院日期是否小於入院日期
     function validateAdmitDischargeDates() {
         const admitDateInput = document.getElementById("AdmitDate");
         const dischargeDateInput = document.getElementById("DischargeDate");
@@ -253,11 +269,35 @@
 </script>
 
 <script>
-        // 根據出院狀況顯示或隱藏轉院欄位
-        function toggleTransferHospital(value) {
-            const row = document.getElementById("transferHospitalRow");
-            row.style.display = value === "轉院" ? "block" : "none";
+    function toggleDischargeDetails(value) {
+        const admitHospital = document.getElementById("AdmitHospitalGroup");
+        const transferHospital = document.getElementById("TransferHospitalGroup");
+        const otherStatus = document.getElementById("OtherDischargeStatusGroup");
+        const dischargeDetailsRow = document.getElementById("dischargeDetailsRow");
+
+        // 1. 重置所有相關欄位顯示狀態
+        admitHospital.style.display = 'none';
+        transferHospital.style.display = 'none';
+        otherStatus.style.display = 'none';
+        dischargeDetailsRow.style.display = 'none'; // 預設隱藏父級
+
+        let shouldShowRow = false;
+
+        if (value === "轉院") {
+            // 需求 2: 選擇轉院時，同時顯示轉院院名和入院院名
+            admitHospital.style.display = 'block';
+            transferHospital.style.display = 'block';
+            shouldShowRow = true;
+        } else if (value === "其他") {
+            // 需求 1: 選擇其他時，只顯示其他出院狀況
+            otherStatus.style.display = 'block';
+            shouldShowRow = true;
         }
+
+        if (shouldShowRow) {
+            dischargeDetailsRow.style.display = 'flex'; // 顯示父級 row
+        }
+    }
 </script>
 <script>
     const renderHospitalizedBadge = (value) => {
@@ -281,6 +321,8 @@
                 return `<span class="badge-chip warning">${value}</span>`;
             case "死亡":
                 return `<span class="badge-chip danger">${value}</span>`;
+            case "其他":
+                return `<span class="badge-chip other">${value}</span>`;
             default:
                 return `<span class="badge-chip muted">${value || "N/A"}</span>`;
         }
@@ -449,18 +491,20 @@
         for (let i = 0; i < result.length; i++) {
             var row = table.insertRow(i + 1);
             
-            var cell1 = row.insertCell(0);
-            var cell2 = row.insertCell(1);
-            var cell3 = row.insertCell(2);
-            var cell4 = row.insertCell(3);
-            var cell5 = row.insertCell(4);
-            var cell6 = row.insertCell(5);
-            var cell7 = row.insertCell(6); // 👈 IsHospitalized
-            var cell8 = row.insertCell(7); // 👈 AdmitDate
-            var cell9 = row.insertCell(8); // 👈 DischargeDate
-            var cell10 = row.insertCell(9); // 👈 DischargeStatus
-            var cell11 = row.insertCell(10); // 👈 TransferHospital
-            var cell12 = row.insertCell(11); // 👈 ExportFHIR
+            var cell1 = row.insertCell(0); // 1. 修改/刪除按鈕
+            var cell2 = row.insertCell(1); // 2. 病歷號
+            var cell3 = row.insertCell(2); // 3. 姓名
+            var cell4 = row.insertCell(3); // 4. 性別
+            var cell5 = row.insertCell(4); // 5. 身分證字號
+            var cell6 = row.insertCell(5); // 6. 生日
+            var cell7 = row.insertCell(6); // 7. 是否住院
+            var cell8 = row.insertCell(7); // 8. 入院日期
+            var cell9 = row.insertCell(8); // 9. 出院日期
+            var cell10 = row.insertCell(9); // 10. 出院狀況
+            var cell11 = row.insertCell(10); // 11. 其他出院狀況 
+            var cell12 = row.insertCell(11); // 12. 入院院名 
+            var cell13 = row.insertCell(12); // 13. 轉院院名 
+            var cell14 = row.insertCell(13); // 14. 匯出FHIR
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -486,21 +530,29 @@
             cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
             cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
             cell10.innerHTML = renderDischargeBadge(result[i].dischargeStatus);
-            cell11.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
+            cell11.innerHTML = result[i].otherDischargeStatus ? result[i].otherDischargeStatus : 'N/A'; // 👈 其他出院狀況
+            cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A'; // 👈 入院院名
+            cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A'; // 👈 轉院院名
 
             // 最右邊匯出FHIR按鈕
-            cell12.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`; // 👈 ExportFHIR
-        }
+            cell14.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;        }
     };
 
     function Submit(){
         var dischargeStatus = document.getElementById("DischargeStatus").value;
-        var transferHospitalInput = document.querySelector('input[name="transferHospital"]');
-        var transferHospital = transferHospitalInput ? transferHospitalInput.value : "";
+        var transferHospital = document.getElementById("TransferHospital").value;
+        var admitHospital = document.getElementById("AdmitHospital").value;
+        var otherDischargeStatus = document.getElementById("OtherDischargeStatus").value;
+
         if (dischargeStatus !== "轉院") {
-            transferHospital = "";
+            transferHospital = ""; 
+            admitHospital = "";
         }
-        var dischargeStatus = document.getElementById("DischargeStatus").value;
+
+        if (dischargeStatus !== "其他") {
+            otherDischargeStatus = ""; 
+        }
+
 
         var formData = {
             PatientId: document.getElementById("PatientId").value,
@@ -516,7 +568,9 @@
             AdmitDate: document.getElementById("AdmitDate").value,
             DischargeDate: document.getElementById("DischargeDate").value,
             DischargeStatus: dischargeStatus,
-            TransferHospital: transferHospital
+            TransferHospital: transferHospital, 
+            OtherDischargeStatus: otherDischargeStatus, 
+            AdmitHospital: admitHospital 
         }
 
         console.log('formData', formData);
@@ -603,10 +657,14 @@
                     document.getElementById("IsHospitalized").value = item.isHospitalized;
                     document.getElementById("AdmitDate").value = new Date(item.admitDate).toLocaleDateString('en-CA');
                     document.getElementById("DischargeDate").value = new Date(item.dischargeDate).toLocaleDateString('en-CA');
+                    document.getElementById("OtherDischargeStatus").value = item.otherDischargeStatus; 
+                    document.getElementById("AdmitHospital").value = item.admitHospital;               
                     document.getElementById("DischargeStatus").value = item.dischargeStatus;
-                    toggleTransferHospital(item.dischargeStatus);
+                    toggleDischargeDetails(item.dischargeStatus);
                     if (item.dischargeStatus === "轉院") {
                         document.getElementById("TransferHospital").value = item.transferHospital;
+                    } else {
+                        document.getElementById("TransferHospital").value = ""; 
                     }
                     return;
                 }

@@ -16,6 +16,9 @@
         public DateTime? AdmitDate { get; set; }
         public DateTime? DischargeDate { get; set; }
         public string DischargeStatus { get; set; }
+        public string OtherDischargeStatus { get; set; }
+        public string AdmitHospital { get; set; }
         public string TransferHospital { get; set; }
+       
     }
 }

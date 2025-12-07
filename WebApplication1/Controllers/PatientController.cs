@@ -181,6 +181,15 @@ namespace WebApplication1.Controllers
                 });
             }
 
+            if (!string.IsNullOrWhiteSpace(p.OtherDischargeStatus))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-otherDischargeStatus", // TODO
+                    valueString = p.OtherDischargeStatus
+                });
+            }
+
             // 🔴 重點：只有在有值的時候才加 transferHospital 這個 extension
             if (!string.IsNullOrWhiteSpace(p.TransferHospital))
             {
@@ -188,6 +197,15 @@ namespace WebApplication1.Controllers
                 {
                     url = "https://your-hospital.tw/fhir/StructureDefinition/patient-transferHospital", // TODO
                     valueString = p.TransferHospital
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(p.AdmitHospital))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-admitHospital", // TODO
+                    valueString = p.AdmitHospital
                 });
             }
 
@@ -271,8 +289,8 @@ namespace WebApplication1.Controllers
             SqlConnection connection = new SqlConnection(ConnStr);
 
             var insertStr = @"INSERT INTO DB1.dbo.Patient
-                (IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday, Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus, TransferHospital)
-                VALUES (@IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday, @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus, @TransferHospital)
+                (IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday, Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus, TransferHospital, OtherDischargeStatus, AdmitHospital)
+                VALUES (@IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday, @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus, @TransferHospital, @OtherDischargeStatus, @AdmitHospital)
                 SELECT @InsertId = SCOPE_IDENTITY()";
 
             SqlCommand command = new SqlCommand(insertStr, connection);
@@ -294,6 +312,8 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
             command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
+            command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus)); 
+            command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital)); 
 
             connection.Open();
             command.ExecuteNonQuery();
@@ -370,6 +390,8 @@ namespace WebApplication1.Controllers
                                     , DischargeDate
                                     , DischargeStatus
                                     , TransferHospital
+                                    , OtherDischargeStatus 
+                                    , AdmitHospital 
                             {baseQuery}
                             ORDER BY PatientId
                             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
@@ -412,6 +434,8 @@ namespace WebApplication1.Controllers
                         DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
                         DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("DischargeStatus")),
                         TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferHospital")),
+                        OtherDischargeStatus = reader.IsDBNull(reader.GetOrdinal("OtherDischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("OtherDischargeStatus")),
+                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("AdmitHospital"))
                     };
 
                     result.Add(patient);
@@ -442,6 +466,8 @@ namespace WebApplication1.Controllers
                                     , DischargeDate
                                     , DischargeStatus
                                     , TransferHospital
+                                    , OtherDischargeStatus
+                                    , AdmitHospital
                             FROM DB1.dbo.Patient
                             WHERE 1=1 ";
 
@@ -525,7 +551,12 @@ namespace WebApplication1.Controllers
                         TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital"))
                             ? null
                             : reader.GetString(reader.GetOrdinal("TransferHospital")),
-
+                        OtherDischargeStatus = reader.IsDBNull(reader.GetOrdinal("OtherDischargeStatus"))
+                            ? null
+                            : reader.GetString(reader.GetOrdinal("OtherDischargeStatus")),
+                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital"))
+                            ? null
+                            : reader.GetString(reader.GetOrdinal("AdmitHospital"))
                     };
 
                     result.Add(patient);
@@ -558,7 +589,9 @@ namespace WebApplication1.Controllers
                                    AdmitDate = @AdmitDate,
                                    DischargeDate = @DischargeDate,
                                    DischargeStatus = @DischargeStatus,
-                                   TransferHospital = @TransferHospital
+                                   TransferHospital = @TransferHospital,
+                                   OtherDischargeStatus = @OtherDischargeStatus, 
+                                   AdmitHospital = @AdmitHospital 
                                WHERE PatientId = @PatientId";
 
             SqlCommand command = new SqlCommand(inserteStr, connection);
@@ -577,6 +610,8 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
             command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
+            command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus)); 
+            command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital)); 
 
             connection.Open();
             var updateResult = command.ExecuteNonQuery();
@@ -611,6 +646,8 @@ namespace WebApplication1.Controllers
                 DischargeDate = viewModel.DischargeDate,
                 DischargeStatus = viewModel.DischargeStatus,
                 TransferHospital = viewModel.TransferHospital,
+                OtherDischargeStatus = viewModel.OtherDischargeStatus,
+                AdmitHospital = viewModel.AdmitHospital,
             };
         }
 
@@ -632,6 +669,8 @@ namespace WebApplication1.Controllers
                 DischargeDate = dbModel.DischargeDate,
                 DischargeStatus = dbModel.DischargeStatus,
                 TransferHospital = dbModel.TransferHospital,
+                OtherDischargeStatus = dbModel.OtherDischargeStatus,
+                AdmitHospital = dbModel.AdmitHospital,
             };
         }
 

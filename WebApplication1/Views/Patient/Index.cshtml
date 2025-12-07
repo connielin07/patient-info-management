@@ -113,6 +113,7 @@
             <div>
                 <p class="eyebrow mb-1">編輯 / 新增</p>
                 <h2 class="section-title mb-0">病人資料</h2>
+                <p class="section-subtitle">標有 * 符號為必填欄位</p>
             </div>
         </div>
 
@@ -124,42 +125,42 @@
         </div>
         <div class="row g-3">
             <div class="form-group col-md-6">
-                <label class="control-label">姓</label>
+                <label class="control-label">姓 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="FamilyName" name="FamilyName" value="@PatientViewModel.FamilyName" placeholder="例：王">
             </div>
             <div class="form-group col-md-6">
-                <label class="control-label">名</label>
+                <label class="control-label">名 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="GivenName" name="GivenName" value="@PatientViewModel.GivenName" placeholder="例：小明">
             </div>
         </div>
         <div class="row g-3">
             <div class="form-group col-md-3">
-                <label class="control-label">身分證字號</label>
+                <label class="control-label">身分證字號 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="IdNo" name="IdNo" value="@PatientViewModel.IdNo" placeholder="A123456789">
             </div>
             <div class="form-group col-md-3">
-                <label class="control-label">生日</label>
+                <label class="control-label">生日 <span style="color: red;">*</span></label>
                 <input type="date" class="form-control" id="Birthday" name="Birthday" value="@(PatientViewModel.Birthday == DateTime.MinValue ? "" : PatientViewModel.Birthday.ToString("yyyy-MM-dd"))">
             </div>
             <div class="form-group col-md-3">
-                <label>性別</label>
-                @Html.DropDownList("group", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
+                <label>性別 <span style="color: red;">*</span></label>
+                @Html.DropDownList("Gender", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
             </div>
             <div class="form-group col-md-3">
-                <label class="control-label">聯絡電話</label>
+                <label class="control-label">聯絡電話 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="Telecom" name="Telecom" value="@PatientViewModel.Telecom" placeholder="手機或市話">
             </div>
         </div>
         <div class="row g-3">
             <div class="form-group col-md-12">
-                <label class="control-label">住址</label>
+                <label class="control-label">住址 <span style="color: red;">*</span></label>
                 <textarea class="form-control" rows="3" id="Address" name="Address" placeholder="例：台北市中正區仁愛路一段">@PatientViewModel.Address</textarea>
             </div>
         </div>
 
         <div class="row g-3">
             <div class="form-group col-md-3">
-                <label class="control-label">是否住院</label>
+                <label class="control-label">是否住院 <span style="color: red;">*</span></label>
                 <select class="form-control" id="IsHospitalized" name="IsHospitalized" onchange="toggleHospitalized(this.value)">
                     <option value="">請下拉選單</option>
                     <option value="Y" selected="@(PatientViewModel.IsHospitalized == "Y")">是</option>

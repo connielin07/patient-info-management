@@ -19,5 +19,9 @@
         public string OtherDischargeStatus { get; set; }
         public string AdmitHospital { get; set; }
         public string TransferHospital { get; set; }
+        public string Occupation { get; set; }
+        public bool HasMajorIllness { get; set; }
+        public bool HasDisability { get; set; }
+        public DateTime LastModified { get; set; }
     }
 }

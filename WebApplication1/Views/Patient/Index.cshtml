@@ -14,6 +14,64 @@
     };
 }
 
+<style>
+    /* 提示訊息樣式 */
+    .ai-toast-holder {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050; /* 確保在其他元素之上 */
+    }
+
+    .ai-toast {
+        background-color: #28a745; /* 綠色背景 */
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        margin-bottom: 10px;
+        opacity: 0;
+        transition: opacity 0.5s, transform 0.5s;
+        transform: translateX(100%);
+        max-width: 300px;
+    }
+
+        .ai-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    /* 載入中畫面樣式 */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8); /* 半透明白色背景 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000; /* 確保在所有頁面元素之上 */
+    }
+
+    /* 載入圖示樣式 (如果您的專案沒有 Bootstrap 則需要手動定義) */
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border .75s linear infinite;
+    }
+
+    @@keyframes spinner-border {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
 <div id="patientForm" class="patient-page">
     <div class="model-header">
         <p class="eyebrow">Patient Management</p>
@@ -30,6 +88,7 @@
             <div class="section-actions d-flex flex-wrap">
                 <button type="button" class="btn btn-success" onclick="Add()">新增</button>
                 <button type="button" class="btn btn-outline-primary" onclick="Search()">查詢</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="ResetSearch()">重置查詢</button>
             </div>
         </div>
 
@@ -49,6 +108,28 @@
             <div class="col-md-3 col-sm-6">
                 <label class="form-label">名</label>
                 <input type="text" class="form-control" id="SearchGivenName" name="SearchGivenName" value="" placeholder="例：小明">
+            </div>
+        </div>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4 col-sm-6">
+                <label class="form-label">職業</label>
+                <input type="text" class="form-control" id="SearchOccupation" name="SearchOccupation" value="" placeholder="例：工程師">
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <label class="form-label">重大傷病</label>
+                <select class="form-control" id="SearchHasMajorIllness" name="SearchHasMajorIllness">
+                    <option value="">請下拉選單</option>
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <label class="form-label">身心障礙</label>
+                <select class="form-control" id="SearchHasDisability" name="SearchHasDisability">
+                    <option value="">請下拉選單</option>
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
             </div>
         </div>
     </div>
@@ -78,6 +159,10 @@
                         <th>其他出院狀況</th>
                         <th>入院院名</th>
                         <th>轉院院名</th>
+                        <th>職業</th>
+                        <th>重大傷病</th>
+                        <th>身心障礙</th>
+                        <th>最新修改時間</th>
                         <th>匯出FHIR</th>
                     </tr>
                 </thead>
@@ -113,6 +198,7 @@
             <div>
                 <p class="eyebrow mb-1">編輯 / 新增</p>
                 <h2 class="section-title mb-0">病人資料</h2>
+                <p class="section-subtitle">標有 * 符號為必填欄位</p>
             </div>
         </div>
 
@@ -124,42 +210,64 @@
         </div>
         <div class="row g-3">
             <div class="form-group col-md-6">
-                <label class="control-label">姓</label>
+                <label class="control-label">姓 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="FamilyName" name="FamilyName" value="@PatientViewModel.FamilyName" placeholder="例：王">
             </div>
             <div class="form-group col-md-6">
-                <label class="control-label">名</label>
+                <label class="control-label">名 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="GivenName" name="GivenName" value="@PatientViewModel.GivenName" placeholder="例：小明">
             </div>
         </div>
         <div class="row g-3">
             <div class="form-group col-md-3">
-                <label class="control-label">身分證字號</label>
+                <label class="control-label">身分證字號 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="IdNo" name="IdNo" value="@PatientViewModel.IdNo" placeholder="A123456789">
             </div>
             <div class="form-group col-md-3">
-                <label class="control-label">生日</label>
+                <label class="control-label">生日 <span style="color: red;">*</span></label>
                 <input type="date" class="form-control" id="Birthday" name="Birthday" value="@(PatientViewModel.Birthday == DateTime.MinValue ? "" : PatientViewModel.Birthday.ToString("yyyy-MM-dd"))">
             </div>
             <div class="form-group col-md-3">
-                <label>性別</label>
-                @Html.DropDownList("group", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
+                <label>性別 <span style="color: red;">*</span></label>
+                @Html.DropDownList("Gender", GenderCodeList, "請下拉選單", new{ @class = "form-control", id = "Gender" })
             </div>
             <div class="form-group col-md-3">
-                <label class="control-label">聯絡電話</label>
+                <label class="control-label">聯絡電話 <span style="color: red;">*</span></label>
                 <input type="text" class="form-control" id="Telecom" name="Telecom" value="@PatientViewModel.Telecom" placeholder="手機或市話">
             </div>
         </div>
         <div class="row g-3">
             <div class="form-group col-md-12">
-                <label class="control-label">住址</label>
+                <label class="control-label">住址 <span style="color: red;">*</span></label>
                 <textarea class="form-control" rows="3" id="Address" name="Address" placeholder="例：台北市中正區仁愛路一段">@PatientViewModel.Address</textarea>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="form-group col-md-4">
+                <label class="control-label">職業</label>
+                <input type="text" class="form-control" id="Occupation" name="Occupation" value="@PatientViewModel.Occupation" placeholder="例：工程師">
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">重大傷病</label>
+                <select class="form-control" id="HasMajorIllness" name="HasMajorIllness">
+                    <option value="">請下拉選單</option>
+                    <option value="true" selected="@(PatientViewModel.HasMajorIllness ? "selected" : null)">是</option>
+                    <option value="false" selected="@(!PatientViewModel.HasMajorIllness ? "selected" : null)">否</option>
+                </select>
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">身心障礙</label>
+                <select class="form-control" id="HasDisability" name="HasDisability">
+                    <option value="">請下拉選單</option>
+                    <option value="true" selected="@(PatientViewModel.HasDisability ? "selected" : null)">是</option>
+                    <option value="false" selected="@(!PatientViewModel.HasDisability ? "selected" : null)">否</option>
+                </select>
             </div>
         </div>
 
         <div class="row g-3">
             <div class="form-group col-md-3">
-                <label class="control-label">是否住院</label>
+                <label class="control-label">是否住院 <span style="color: red;">*</span></label>
                 <select class="form-control" id="IsHospitalized" name="IsHospitalized" onchange="toggleHospitalized(this.value)">
                     <option value="">請下拉選單</option>
                     <option value="Y" selected="@(PatientViewModel.IsHospitalized == "Y")">是</option>
@@ -213,6 +321,15 @@
         </div>
     </div>
 </div>
+
+<div id="aiToastHolder" class="ai-toast-holder"></div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
 <script>
     function toggleHospitalized(value) {
         const row = document.getElementById("hospitalizedDateRow");
@@ -298,6 +415,11 @@
             dischargeDetailsRow.style.display = 'flex'; // 顯示父級 row
         }
     }
+
+    // 兼容舊版呼叫，直接代理到 toggleDischargeDetails
+    function toggleTransferHospital(value) {
+        toggleDischargeDetails(value);
+    }
 </script>
 <script>
     const renderHospitalizedBadge = (value) => {
@@ -326,6 +448,23 @@
             default:
                 return `<span class="badge-chip muted">${value || "N/A"}</span>`;
         }
+    };
+
+    const renderBooleanBadge = (value) => {
+        if (value === true || value === "true") {
+            return '<span class="badge-chip success">是</span>';
+        }
+        if (value === false || value === "false") {
+            return '<span class="badge-chip muted">否</span>';
+        }
+        return '<span class="badge-chip muted">N/A</span>';
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) return "N/A";
+        const date = new Date(value);
+        if (isNaN(date)) return "N/A";
+        return date.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     };
 
     function showToast(message, type = "info") {
@@ -429,11 +568,28 @@
         renderPageNumbers(totalPages);
     }
 
+    function ResetSearch() {
+        document.getElementById("SearchPatientId").value = "";
+        document.getElementById("SearchIdNo").value = "";
+        document.getElementById("SearchFamilyName").value = "";
+        document.getElementById("SearchGivenName").value = "";
+        document.getElementById("SearchOccupation").value = "";
+        document.getElementById("SearchHasMajorIllness").value = "";
+        document.getElementById("SearchHasDisability").value = "";
+        currentPage = 1;
+        document.getElementById("gotoPageInput").value = currentPage;
+        Search();
+    }
+
     function Search() {
         const resultPanel = document.getElementById('resultPanel');
         const pageSizeInput = document.getElementById("pageSizeInput");
         pageSize = clampPageSize(parseInt(pageSizeInput.value, 10));
         pageSizeInput.value = pageSize;
+        const parseBoolFilter = (id) => {
+            const val = document.getElementById(id).value;
+            return val === "" ? undefined : val === "true";
+        };
         $.ajax({
             url: '@Url.Content("~/Patient/Search")',
             method: 'POST',
@@ -443,19 +599,20 @@
                 idNo: document.getElementById("SearchIdNo").value,
                 familyName: document.getElementById("SearchFamilyName").value,
                 givenName: document.getElementById("SearchGivenName").value,
-                admitDate: document.querySelector('input[name="admitDate"]').value,
-                dischargeDate: document.querySelector('input[name="dischargeDate"]').value,
-                dischargeStatus: document.getElementById("DischargeStatus").value,
-                transferHospital: document.querySelector('input[name="transferHospital"]') ? document.querySelector('input[name="transferHospital"]').value : "",
+                occupation: document.getElementById("SearchOccupation").value,
+                hasMajorIllness: parseBoolFilter("SearchHasMajorIllness"),
+                hasDisability: parseBoolFilter("SearchHasDisability"),
                 page: currentPage,
                 pageSize: pageSize
             },
             success: function (result) {
-                // 後端回傳 PagedResult，兼容舊格式陣列
-                const items = Array.isArray(result) ? result : (result.items || []);
-                totalCount = result.totalCount ?? items.length;
-                currentPage = result.page ?? currentPage;
-                pageSize = result.pageSize ?? pageSize;
+                // 後端回傳 PagedResult，兼容舊格式陣列 / PascalCase
+                const items = Array.isArray(result)
+                    ? result
+                    : (result.items || result.Items || []);
+                totalCount = result.totalCount ?? result.TotalCount ?? items.length;
+                currentPage = result.page ?? result.Page ?? currentPage;
+                pageSize = result.pageSize ?? result.PageSize ?? pageSize;
 
                 if (items.length > 0) {
                     resultPanel.style.display = "block";
@@ -491,20 +648,24 @@
         for (let i = 0; i < result.length; i++) {
             var row = table.insertRow(i + 1);
             
-            var cell1 = row.insertCell(0); // 1. 修改/刪除按鈕
-            var cell2 = row.insertCell(1); // 2. 病歷號
-            var cell3 = row.insertCell(2); // 3. 姓名
-            var cell4 = row.insertCell(3); // 4. 性別
-            var cell5 = row.insertCell(4); // 5. 身分證字號
-            var cell6 = row.insertCell(5); // 6. 生日
-            var cell7 = row.insertCell(6); // 7. 是否住院
-            var cell8 = row.insertCell(7); // 8. 入院日期
-            var cell9 = row.insertCell(8); // 9. 出院日期
-            var cell10 = row.insertCell(9); // 10. 出院狀況
-            var cell11 = row.insertCell(10); // 11. 其他出院狀況 
-            var cell12 = row.insertCell(11); // 12. 入院院名 
-            var cell13 = row.insertCell(12); // 13. 轉院院名 
-            var cell14 = row.insertCell(13); // 14. 匯出FHIR
+                        var cell1 = row.insertCell(0); // 1. 修改/刪除按鈕
+            var cell2 = row.insertCell(1); // 2. 病歷號
+            var cell3 = row.insertCell(2); // 3. 姓名
+            var cell4 = row.insertCell(3); // 4. 性別
+            var cell5 = row.insertCell(4); // 5. 身分證字號
+            var cell6 = row.insertCell(5); // 6. 生日
+            var cell7 = row.insertCell(6); // 7. 是否住院
+            var cell8 = row.insertCell(7); // 8. 入院日期
+            var cell9 = row.insertCell(8); // 9. 出院日期
+            var cell10 = row.insertCell(9); // 10. 出院狀況
+            var cell11 = row.insertCell(10); // 11. 其他出院狀況 
+            var cell12 = row.insertCell(11); // 12. 入院院名 
+            var cell13 = row.insertCell(12); // 13. 轉院院名 
+            var cell14 = row.insertCell(13); // 14. 職業
+            var cell15 = row.insertCell(14); // 15. 重大傷病
+            var cell16 = row.insertCell(15); // 16. 身心障礙
+            var cell17 = row.insertCell(16); // 17. 最新修改時間
+            var cell18 = row.insertCell(17); // 18. 匯出FHIR
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -519,6 +680,9 @@
 
             // 轉換日期格式，如果日期是 MinValue 則顯示 N/A
             const formatIfValid = (dateString) => {
+                if (!dateString) {
+                    return 'N/A';
+                }
                 const date = new Date(dateString);
                 // 檢查是否是有效的日期 (非 0001/01/01 且非無效日期)
                 if (date.getFullYear() > 1 && !isNaN(date)) {
@@ -529,13 +693,18 @@
 
             cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
             cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
-            cell10.innerHTML = renderDischargeBadge(result[i].dischargeStatus);
-            cell11.innerHTML = result[i].otherDischargeStatus ? result[i].otherDischargeStatus : 'N/A'; // 👈 其他出院狀況
-            cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A'; // 👈 入院院名
-            cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A'; // 👈 轉院院名
+                        cell10.innerHTML = renderDischargeBadge(result[i].dischargeStatus);
+            cell11.innerHTML = result[i].otherDischargeStatus ? result[i].otherDischargeStatus : 'N/A'; // ?? 其他出院狀況
+            cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A'; // ?? 入院院名
+            cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A'; // ?? 轉院院名
+            cell14.innerHTML = result[i].occupation ? result[i].occupation : 'N/A';
+            cell15.innerHTML = renderBooleanBadge(result[i].hasMajorIllness);
+            cell16.innerHTML = renderBooleanBadge(result[i].hasDisability);
+            cell17.innerHTML = formatDateTime(result[i].lastModified);
 
             // 最右邊匯出FHIR按鈕
-            cell14.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;        }
+            cell18.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
+        }
     };
 
     function Submit(){
@@ -543,6 +712,9 @@
         var transferHospital = document.getElementById("TransferHospital").value;
         var admitHospital = document.getElementById("AdmitHospital").value;
         var otherDischargeStatus = document.getElementById("OtherDischargeStatus").value;
+        var occupation = document.getElementById("Occupation").value;
+        var hasMajorIllnessVal = document.getElementById("HasMajorIllness").value;
+        var hasDisabilityVal = document.getElementById("HasDisability").value;
 
         if (dischargeStatus !== "轉院") {
             transferHospital = ""; 
@@ -570,7 +742,10 @@
             DischargeStatus: dischargeStatus,
             TransferHospital: transferHospital, 
             OtherDischargeStatus: otherDischargeStatus, 
-            AdmitHospital: admitHospital 
+            AdmitHospital: admitHospital,
+            Occupation: occupation,
+            HasMajorIllness: hasMajorIllnessVal === "true",
+            HasDisability: hasDisabilityVal === "true"
         }
 
         console.log('formData', formData);
@@ -585,6 +760,53 @@
             }
         }
 
+       let errorFields = []; // 用於收集所有未通過驗證的欄位名稱
+
+        // (A) 必填欄位檢查
+        if (!formData.FamilyName) {
+            errorFields.push("姓");
+        }
+        if (!formData.GivenName) {
+            errorFields.push("名");
+        }
+        if (!formData.IdNo) {
+            errorFields.push("身分證字號");
+        }
+        const birthdayValue = formData.Birthday;
+        // 檢查生日是否為空或年份無效 (防止 0001/01/01 傳入)
+        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) {
+            errorFields.push("生日");
+        }
+        if (!formData.Gender) {
+            errorFields.push("性別");
+        }
+        if (!formData.Telecom) {
+            errorFields.push("聯絡電話");
+        }
+        if (!formData.Address) {
+            errorFields.push("地址");
+        }
+        if (!formData.IsHospitalized) {
+            errorFields.push("是否住院");
+        }
+
+        // (B) 日期邏輯檢查：入院日期不可晚於出院日期
+        if (formData.IsHospitalized === "Y" &&
+            formData.AdmitDate &&
+            formData.DischargeDate) {
+
+            const datesValid = validateAdmitDischargeDates();
+            if (!datesValid) {
+                errorFields.push("入院/出院日期邏輯錯誤");
+            }
+        }
+        if (errorFields.length > 0) {
+        // 組合錯誤訊息
+        const message = `尚有欄位未填寫或資料有誤，請檢查以下欄位：${errorFields.join('、')}。`;
+        showToast(message, "danger");
+        return; // 阻止 AJAX 送出
+        }
+
         $.ajax({
             url: '@Url.Content("~/Patient/Save")',
             method: 'POST',
@@ -593,7 +815,11 @@
                 patientViewModel: formData
             },
             success: function (result) {
-                if (result) {
+                if (typeof result === 'string' && result.includes("身分證字號重複")) {
+                    showToast(result, "danger");
+                    return;
+                }
+                if (result === true) { // 假設後端成功回傳 true
                     document.getElementById('editForm').style.display = "none";
                     document.getElementById('submitButton').style.display = "none";
 
@@ -601,7 +827,8 @@
                     showToast("儲存成功", "success");
                     return;
                 }
-                showToast(result.Error || "儲存失敗", "danger");
+                // 處理非 true 的回傳結果
+                showToast("儲存失敗：請檢查資料。", "danger"); 
             },
             error: function (err) {
                 showToast(err.responseText || "儲存失敗，請稍後再試", "danger");
@@ -623,14 +850,17 @@
         document.getElementById("Gender").value = "";
         document.getElementById("Telecom").value = "";
         document.getElementById("Address").value = "";
+        document.getElementById("Occupation").value = "";
+        document.getElementById("HasMajorIllness").value = "";
+        document.getElementById("HasDisability").value = "";
         document.getElementById("IsHospitalized").value = ""; // 👈 初始為空（請下拉選單）
         
         document.getElementById("AdmitDate").value = new Date().toLocaleDateString('en-CA');       // 👈 新增/修改這行
         document.getElementById("DischargeDate").value = new Date().toLocaleDateString('en-CA');    // 👈 新增/修改這行
 
-        toggleHospitalized(""); // 👈 隱藏入院/出院日期
+        toggleHospitalized(""); 
         document.getElementById("DischargeStatus").value = "";
-        toggleTransferHospital("");
+        toggleDischargeDetails("");
     };
     function Update(id) {
         $.ajax({
@@ -641,11 +871,12 @@
                 patientId: id
             },
             success: function (result) {
-                if (result && result.items && result.items.length > 0) {
+                const items = result?.items || result?.Items || [];
+                if (items.length > 0) {
                     document.getElementById('editForm').style.display = "block";
                     document.getElementById('submitButton').style.display = "block";
 
-                    const item = result.items[0];
+                    const item = items[0];
                     document.getElementById("PatientId").value = item.patientId;
                     document.getElementById("FamilyName").value = item.familyName;
                     document.getElementById("GivenName").value = item.givenName;
@@ -654,6 +885,9 @@
                     document.getElementById("Gender").value = item.gender;
                     document.getElementById("Telecom").value = item.telecom;
                     document.getElementById("Address").value = item.address;
+                    document.getElementById("Occupation").value = item.occupation || "";
+                    document.getElementById("HasMajorIllness").value = item.hasMajorIllness === true ? "true" : (item.hasMajorIllness === false ? "false" : "");
+                    document.getElementById("HasDisability").value = item.hasDisability === true ? "true" : (item.hasDisability === false ? "false" : "");
                     document.getElementById("IsHospitalized").value = item.isHospitalized;
                     document.getElementById("AdmitDate").value = new Date(item.admitDate).toLocaleDateString('en-CA');
                     document.getElementById("DischargeDate").value = new Date(item.dischargeDate).toLocaleDateString('en-CA');
@@ -703,3 +937,87 @@
     }
 
 </script>
+
+<script>
+    // 定義 AI 提示訊息清單
+    const aiTips = [
+        "您已專注超過一分鐘，建議起身走動並讓眼睛休息一下。",
+        "工作辛苦了！記得喝一杯水，保持身體水分充足。",
+        "給自己 30 秒的微休息時間，再回到工作崗位上吧。",
+        "眼睛疲勞嗎？看看遠處的景色，讓眼部肌肉放鬆。",
+        "休息是為了走更長遠的路，現在就是最佳的充電時刻！",
+        "站起來伸個懶腰，簡單的伸展有助於血液循環。",
+        "您已經持續工作了一段時間，是時候來點咖啡或茶了。"
+    ];
+    let tipIndex = 0;
+    let intervalTimer = null;
+    const INTERVAL_MS = 60 * 1000; // 固定間隔時間：60 秒 = 1 分鐘
+
+    // 顯示 AI 提示的函數
+    function showAITip() {
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const aiToastHolder = document.getElementById("aiToastHolder");
+
+        // 1. 顯示載入中畫面
+        loadingOverlay.style.display = "flex";
+
+        // 模擬 AI 運算 1.5 秒後，顯示提示訊息
+        setTimeout(() => {
+            // 隱藏載入中畫面
+            loadingOverlay.style.display = "none";
+
+            // 取得提示訊息
+            const message = aiTips[tipIndex];
+            tipIndex = (tipIndex + 1) % aiTips.length; // 循環使用提示
+
+            // 建立提示 Toast
+            const toast = document.createElement("div");
+            toast.className = 'ai-toast';
+            toast.innerText = message;
+            aiToastHolder.appendChild(toast);
+
+            // 淡入效果
+            setTimeout(() => toast.classList.add("show"), 10);
+
+            // 5 秒後自動消失
+            setTimeout(() => {
+                toast.classList.remove("show");
+                // 移除 DOM
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+
+        }, 1500); // 載入延遲 1.5 秒
+    }
+
+    // ⭐ 新的邏輯：設置固定間隔執行的計時器
+    function startIntervalTimer() {
+        // 清除現有計時器，避免重複啟動
+        if (intervalTimer) {
+            clearInterval(intervalTimer);
+        }
+
+        // 使用 setInterval 設定每 60 秒固定觸發一次 showAITip
+        intervalTimer = setInterval(() => {
+            showAITip();
+        }, INTERVAL_MS);
+    }
+
+    // 移除 setupActivityListeners 函數，因為不再需要監聽使用者活動
+
+    // 頁面載入完成後立即啟動固定間隔計時器
+    document.addEventListener('DOMContentLoaded', function() {
+        startIntervalTimer();
+    });
+
+    // 為了完整性，如果您希望在頁面關閉或跳轉時停止計時器，可以加上這個：
+    // window.addEventListener('beforeunload', function () {
+    //     if (intervalTimer) {
+    //         clearInterval(intervalTimer);
+    //     }
+    // window.addEventListener('beforeunload', function () {
+    //     if (intervalTimer) {
+    //         clearInterval(intervalTimer);
+    //     }
+    // })
+</script>
+

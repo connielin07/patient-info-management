@@ -14,6 +14,64 @@
     };
 }
 
+<style>
+    /* 提示訊息樣式 */
+    .ai-toast-holder {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050; /* 確保在其他元素之上 */
+    }
+
+    .ai-toast {
+        background-color: #28a745; /* 綠色背景 */
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        margin-bottom: 10px;
+        opacity: 0;
+        transition: opacity 0.5s, transform 0.5s;
+        transform: translateX(100%);
+        max-width: 300px;
+    }
+
+        .ai-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    /* 載入中畫面樣式 */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8); /* 半透明白色背景 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000; /* 確保在所有頁面元素之上 */
+    }
+
+    /* 載入圖示樣式 (如果您的專案沒有 Bootstrap 則需要手動定義) */
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border .75s linear infinite;
+    }
+
+    @@keyframes spinner-border {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
 <div id="patientForm" class="patient-page">
     <div class="model-header">
         <p class="eyebrow">Patient Management</p>
@@ -214,6 +272,15 @@
         </div>
     </div>
 </div>
+
+<div id="aiToastHolder" class="ai-toast-holder"></div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
 <script>
     function toggleHospitalized(value) {
         const row = document.getElementById("hospitalizedDateRow");
@@ -703,4 +770,83 @@
         window.location.href = '@Url.Content("~/Patient/ExportFHIR")' + '?patientId=' + id;
     }
 
+</script>
+
+<script>
+    // 定義 AI 提示訊息清單
+    const aiTips = [
+        "您已專注超過一分鐘，建議起身走動並讓眼睛休息一下。",
+        "工作辛苦了！記得喝一杯水，保持身體水分充足。",
+        "給自己 30 秒的微休息時間，再回到工作崗位上吧。",
+        "眼睛疲勞嗎？看看遠處的景色，讓眼部肌肉放鬆。",
+        "休息是為了走更長遠的路，現在就是最佳的充電時刻！",
+        "站起來伸個懶腰，簡單的伸展有助於血液循環。",
+        "您已經持續工作了一段時間，是時候來點咖啡或茶了。"
+    ];
+    let tipIndex = 0;
+    let intervalTimer = null;
+    const INTERVAL_MS = 60 * 1000; // 固定間隔時間：60 秒 = 1 分鐘
+
+    // 顯示 AI 提示的函數
+    function showAITip() {
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const aiToastHolder = document.getElementById("aiToastHolder");
+
+        // 1. 顯示載入中畫面
+        loadingOverlay.style.display = "flex";
+
+        // 模擬 AI 運算 1.5 秒後，顯示提示訊息
+        setTimeout(() => {
+            // 隱藏載入中畫面
+            loadingOverlay.style.display = "none";
+
+            // 取得提示訊息
+            const message = aiTips[tipIndex];
+            tipIndex = (tipIndex + 1) % aiTips.length; // 循環使用提示
+
+            // 建立提示 Toast
+            const toast = document.createElement("div");
+            toast.className = 'ai-toast';
+            toast.innerText = message;
+            aiToastHolder.appendChild(toast);
+
+            // 淡入效果
+            setTimeout(() => toast.classList.add("show"), 10);
+
+            // 5 秒後自動消失
+            setTimeout(() => {
+                toast.classList.remove("show");
+                // 移除 DOM
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+
+        }, 1500); // 載入延遲 1.5 秒
+    }
+
+    // ⭐ 新的邏輯：設置固定間隔執行的計時器
+    function startIntervalTimer() {
+        // 清除現有計時器，避免重複啟動
+        if (intervalTimer) {
+            clearInterval(intervalTimer);
+        }
+
+        // 使用 setInterval 設定每 60 秒固定觸發一次 showAITip
+        intervalTimer = setInterval(() => {
+            showAITip();
+        }, INTERVAL_MS);
+    }
+
+    // 移除 setupActivityListeners 函數，因為不再需要監聽使用者活動
+
+    // 頁面載入完成後立即啟動固定間隔計時器
+    document.addEventListener('DOMContentLoaded', function() {
+        startIntervalTimer();
+    });
+
+    // 為了完整性，如果您希望在頁面關閉或跳轉時停止計時器，可以加上這個：
+    // window.addEventListener('beforeunload', function () {
+    //     if (intervalTimer) {
+    //         clearInterval(intervalTimer);
+    //     }
+    // });
 </script>

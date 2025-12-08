@@ -653,6 +653,43 @@
             }
         }
 
+        if (!document.getElementById("FamilyName").value) {
+        showToast("錯誤：請填寫「姓」欄位。", "danger");
+        return; // 阻止繼續執行
+        }
+        if (!document.getElementById("GivenName").value) {
+            showToast("錯誤：請填寫「名」欄位。", "danger");
+            return;
+        }
+        if (!document.getElementById("IdNo").value) {
+            showToast("錯誤：請填寫「身分證字號」欄位。", "danger");
+            return;
+        }
+        // 處理日期欄位（例如 Birthday）
+        const birthdayValue = document.getElementById("Birthday").value;
+        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) { // 檢查日期是否有效
+            showToast("錯誤：請選擇有效的「生日」。", "danger");
+            return;
+        }
+        // 檢查下拉式選單 (值為空字串或 null)
+        if (!document.getElementById("Gender").value) {
+            showToast("錯誤：請選擇「性別」。", "danger");
+            return;
+        }
+        if (!document.getElementById("Telecom").value) {
+            showToast("錯誤：請填寫「連絡電話」欄位。", "danger");
+            return;
+        }
+        if (!document.getElementById("Address").value) {
+            showToast("錯誤：請填寫「地址」欄位。", "danger");
+            return;
+        }
+        // 檢查是否住院
+        if (!document.getElementById("IsHospitalized").value) {
+            showToast("錯誤：請選擇「是否住院」。", "danger");
+            return;
+        }
+
         $.ajax({
             url: '@Url.Content("~/Patient/Save")',
             method: 'POST',
@@ -661,7 +698,11 @@
                 patientViewModel: formData
             },
             success: function (result) {
-                if (result) {
+                if (typeof result === 'string' && result.includes("身分證字號重複")) {
+                    showToast(result, "danger");
+                    return;
+                }
+                if (result === true) { // 假設後端成功回傳 true
                     document.getElementById('editForm').style.display = "none";
                     document.getElementById('submitButton').style.display = "none";
 
@@ -669,7 +710,8 @@
                     showToast("儲存成功", "success");
                     return;
                 }
-                showToast(result.Error || "儲存失敗", "danger");
+                // 處理非 true 的回傳結果
+                showToast("儲存失敗：請檢查資料。", "danger"); 
             },
             error: function (err) {
                 showToast(err.responseText || "儲存失敗，請稍後再試", "danger");

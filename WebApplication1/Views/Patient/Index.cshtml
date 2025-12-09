@@ -653,41 +653,51 @@
             }
         }
 
-        if (!document.getElementById("FamilyName").value) {
-        showToast("錯誤：請填寫「姓」欄位。", "danger");
-        return; // 阻止繼續執行
+       let errorFields = []; // 用於收集所有未通過驗證的欄位名稱
+
+        // (A) 必填欄位檢查
+        if (!formData.FamilyName) {
+            errorFields.push("姓");
         }
-        if (!document.getElementById("GivenName").value) {
-            showToast("錯誤：請填寫「名」欄位。", "danger");
-            return;
+        if (!formData.GivenName) {
+            errorFields.push("名");
         }
-        if (!document.getElementById("IdNo").value) {
-            showToast("錯誤：請填寫「身分證字號」欄位。", "danger");
-            return;
+        if (!formData.IdNo) {
+            errorFields.push("身分證字號");
         }
-        // 處理日期欄位（例如 Birthday）
-        const birthdayValue = document.getElementById("Birthday").value;
-        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) { // 檢查日期是否有效
-            showToast("錯誤：請選擇有效的「生日」。", "danger");
-            return;
+        const birthdayValue = formData.Birthday;
+        // 檢查生日是否為空或年份無效 (防止 0001/01/01 傳入)
+        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) {
+            errorFields.push("生日");
         }
-        // 檢查下拉式選單 (值為空字串或 null)
-        if (!document.getElementById("Gender").value) {
-            showToast("錯誤：請選擇「性別」。", "danger");
-            return;
+        if (!formData.Gender) {
+            errorFields.push("性別");
         }
-        if (!document.getElementById("Telecom").value) {
-            showToast("錯誤：請填寫「連絡電話」欄位。", "danger");
-            return;
+        if (!formData.Telecom) {
+            errorFields.push("聯絡電話");
         }
-        if (!document.getElementById("Address").value) {
-            showToast("錯誤：請填寫「地址」欄位。", "danger");
-            return;
+        if (!formData.Address) {
+            errorFields.push("地址");
         }
-        // 檢查是否住院
-        if (!document.getElementById("IsHospitalized").value) {
-            showToast("錯誤：請選擇「是否住院」。", "danger");
-            return;
+        if (!formData.IsHospitalized) {
+            errorFields.push("是否住院");
+        }
+
+        // (B) 日期邏輯檢查：入院日期不可晚於出院日期
+        if (formData.IsHospitalized === "Y" &&
+            formData.AdmitDate &&
+            formData.DischargeDate) {
+
+            const datesValid = validateAdmitDischargeDates();
+            if (!datesValid) {
+                errorFields.push("入院/出院日期邏輯錯誤");
+            }
+        }
+        if (errorFields.length > 0) {
+        // 組合錯誤訊息
+        const message = `尚有欄位未填寫或資料有誤，請檢查以下欄位：${errorFields.join('、')}。`;
+        showToast(message, "danger");
+        return; // 阻止 AJAX 送出
         }
 
         $.ajax({
@@ -738,9 +748,9 @@
         document.getElementById("AdmitDate").value = new Date().toLocaleDateString('en-CA');       // 👈 新增/修改這行
         document.getElementById("DischargeDate").value = new Date().toLocaleDateString('en-CA');    // 👈 新增/修改這行
 
-        toggleHospitalized(""); // 👈 隱藏入院/出院日期
+        toggleHospitalized(""); 
         document.getElementById("DischargeStatus").value = "";
-        toggleTransferHospital("");
+        toggleDischargeDetails("");
     };
     function Update(id) {
         $.ajax({

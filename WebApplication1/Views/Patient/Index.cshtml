@@ -36,40 +36,11 @@
         max-width: 300px;
     }
 
-        .ai-toast.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-    /* 載入中畫面樣式 */
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8); /* 半透明白色背景 */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 2000; /* 確保在所有頁面元素之上 */
+    .ai-toast.show {
+        opacity: 1;
+        transform: translateX(0);
     }
 
-    /* 載入圖示樣式 (如果您的專案沒有 Bootstrap 則需要手動定義) */
-    .spinner-border {
-        width: 3rem;
-        height: 3rem;
-        border: 0.25em solid currentColor;
-        border-right-color: transparent;
-        border-radius: 50%;
-        animation: spinner-border .75s linear infinite;
-    }
-
-    @@keyframes spinner-border {
-        to {
-            transform: rotate(360deg);
-        }
-    }
 </style>
 
 <div id="patientForm" class="patient-page">
@@ -1008,40 +979,36 @@
     let intervalTimer = null;
     const INTERVAL_MS = 60 * 1000; // 固定間隔時間：60 秒 = 1 分鐘
 
-    // 顯示 AI 提示的函數
+        // 顯示 AI 提示的函數
     function showAITip() {
-        const loadingOverlay = document.getElementById("loadingOverlay");
+        // 移除對 loadingOverlay 的引用
         const aiToastHolder = document.getElementById("aiToastHolder");
 
-        // 1. 顯示載入中畫面
-        loadingOverlay.style.display = "flex";
+        // 移除 1. 顯示載入中畫面
+        // loadingOverlay.style.display = "flex";
 
-        // 模擬 AI 運算 1.5 秒後，顯示提示訊息
+        // 直接執行提示邏輯，不再需要模擬延遲
+        // 取得提示訊息
+        const message = aiTips[tipIndex];
+        tipIndex = (tipIndex + 1) % aiTips.length; // 循環使用提示
+
+        // 建立提示 Toast
+        const toast = document.createElement("div");
+        toast.className = 'ai-toast';
+        toast.innerText = message;
+        aiToastHolder.appendChild(toast);
+
+        // 淡入效果
+        setTimeout(() => toast.classList.add("show"), 10);
+
+        // 5 秒後自動消失
         setTimeout(() => {
-            // 隱藏載入中畫面
-            loadingOverlay.style.display = "none";
+            toast.classList.remove("show");
+            // 移除 DOM
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
 
-            // 取得提示訊息
-            const message = aiTips[tipIndex];
-            tipIndex = (tipIndex + 1) % aiTips.length; // 循環使用提示
-
-            // 建立提示 Toast
-            const toast = document.createElement("div");
-            toast.className = 'ai-toast';
-            toast.innerText = message;
-            aiToastHolder.appendChild(toast);
-
-            // 淡入效果
-            setTimeout(() => toast.classList.add("show"), 10);
-
-            // 5 秒後自動消失
-            setTimeout(() => {
-                toast.classList.remove("show");
-                // 移除 DOM
-                setTimeout(() => toast.remove(), 500);
-            }, 5000);
-
-        }, 1500); // 載入延遲 1.5 秒
+        // 移除舊的 setTimeout 區塊，因為不再需要載入延遲
     }
 
     // ⭐ 新的邏輯：設置固定間隔執行的計時器

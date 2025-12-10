@@ -72,14 +72,14 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost]
-        public IActionResult Search(long? patientId, string? idNo, string? familyName, string? givenName, int page = 1, int pageSize = 20)
+        public IActionResult Search(long? patientId, string? idNo, string? familyName, string? givenName, string? dischargeStatus, string? transferHospital, string? occupation, bool? hasMajorInjury, bool? hasDisability, int page = 1, int pageSize = 20)
         {
             try
             {
                 page = Math.Max(1, page);
                 pageSize = Math.Clamp(pageSize, 5, 100);
 
-                var pagedResult = QueryPatientListPaged(patientId, idNo, familyName, givenName, null, null, page, pageSize).Result;
+                var pagedResult = QueryPatientListPaged(patientId, idNo, familyName, givenName, dischargeStatus, transferHospital, occupation, hasMajorInjury, hasDisability, page, pageSize).Result;
                 var resultList = pagedResult.Items.Select(ConvertPatientDBModeltoViewModel).ToList();
 
                 var response = new PagedResult<PatientViewModel>
@@ -290,20 +290,34 @@ namespace WebApplication1.Controllers
         public Task<long> InsertPatient(PatientDBModel patient)
         {
             long insertId = 0;
+            using var connection = new SqlConnection(ConnStr);
 
-            SqlConnection connection = new SqlConnection(ConnStr);
+            var insertStr = @"
+                INSERT INTO DB1.dbo.Patient
+                (
+                    IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday,
+                    Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus,
+                    TransferHospital, OtherDischargeStatus, AdmitHospital, Occupation,
+                    HasMajorInjury, HasDisability, LastModifiedAt
+                )
+                VALUES
+                (
+                    @IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday,
+                    @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus,
+                    @TransferHospital, @OtherDischargeStatus, @AdmitHospital, @Occupation,
+                    @HasMajorInjury, @HasDisability, SYSDATETIME()
+                );
 
-            var insertStr = @"INSERT INTO DB1.dbo.Patient
-                (IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday, Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus, TransferHospital, OtherDischargeStatus, AdmitHospital)
-                VALUES (@IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday, @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus, @TransferHospital, @OtherDischargeStatus, @AdmitHospital)
-                SELECT @InsertId = SCOPE_IDENTITY()";
+                SELECT @InsertId = SCOPE_IDENTITY();";
 
-            SqlCommand command = new SqlCommand(insertStr, connection);
+            using var command = new SqlCommand(insertStr, connection);
 
-            SqlParameter outPutValue = new SqlParameter("@InsertId", SqlDbType.BigInt);
-            outPutValue.Direction = ParameterDirection.Output;
-
+            var outPutValue = new SqlParameter("@InsertId", SqlDbType.BigInt)
+            {
+                Direction = ParameterDirection.Output
+            };
             command.Parameters.Add(outPutValue);
+
             command.Parameters.Add(new SqlParameter("@IdNo", patient.IdNo));
             command.Parameters.Add(new SqlParameter("@Active", patient.Active));
             command.Parameters.Add(new SqlParameter("@FamilyName", patient.FamilyName));
@@ -313,18 +327,21 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@Birthday", patient.Birthday.ToString("yyyy/MM/dd")));
             command.Parameters.Add(new SqlParameter("@Address", patient.Address));
             command.Parameters.Add(new SqlParameter("@IsHospitalized", patient.IsHospitalized));
-            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
-            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
-            command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
+            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
+            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
+            command.Parameters.Add(new SqlParameter("@DischargeStatus", string.IsNullOrWhiteSpace(patient.DischargeStatus) ? DBNull.Value : patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
-            command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus)); 
-            command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital)); 
+            command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus));
+            command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital));
+            command.Parameters.Add(new SqlParameter("@Occupation", string.IsNullOrWhiteSpace(patient.Occupation) ? DBNull.Value : patient.Occupation));
+            command.Parameters.Add(new SqlParameter("@HasMajorInjury", patient.HasMajorInjury));
+            command.Parameters.Add(new SqlParameter("@HasDisability", patient.HasDisability));
 
             connection.Open();
             command.ExecuteNonQuery();
             connection.Close();
 
-            if(outPutValue.Value != DBNull.Value)
+            if (outPutValue.Value != DBNull.Value)
             {
                 insertId = Convert.ToInt64(outPutValue.Value);
             }
@@ -332,7 +349,7 @@ namespace WebApplication1.Controllers
             return Task.FromResult(insertId);
         }
 
-        public Task<(List<PatientDBModel> Items, int TotalCount)> QueryPatientListPaged(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null, int page = 1, int pageSize = 20)
+        public Task<(List<PatientDBModel> Items, int TotalCount)> QueryPatientListPaged(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null, string? occupation = null, bool? hasMajorInjury = null, bool? hasDisability = null, int page = 1, int pageSize = 20)
         {
             var result = new List<PatientDBModel>();
             var totalCount = 0;
@@ -368,6 +385,24 @@ namespace WebApplication1.Controllers
                 param.Add(new SqlParameter("@GivenName", givenName));
             }
 
+            if (!string.IsNullOrWhiteSpace(occupation))
+            {
+                baseQuery += " AND Occupation LIKE '%' + @Occupation + '%'";
+                param.Add(new SqlParameter("@Occupation", occupation));
+            }
+
+            if (hasMajorInjury.HasValue)
+            {
+                baseQuery += " AND HasMajorInjury = @HasMajorInjury ";
+                param.Add(new SqlParameter("@HasMajorInjury", hasMajorInjury.Value));
+            }
+
+            if (hasDisability.HasValue)
+            {
+                baseQuery += " AND HasDisability = @HasDisability ";
+                param.Add(new SqlParameter("@HasDisability", hasDisability.Value));
+            }
+
             if (dischargeStatus != null)
             {
                 baseQuery += " AND DischargeStatus = @DischargeStatus ";
@@ -396,7 +431,11 @@ namespace WebApplication1.Controllers
                                     , DischargeStatus
                                     , TransferHospital
                                     , OtherDischargeStatus 
-                                    , AdmitHospital 
+                                    , AdmitHospital 
+                                    , Occupation
+                                    , HasMajorInjury
+                                    , HasDisability
+                                    , LastModifiedAt
                             {baseQuery}
                             ORDER BY PatientId
                             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
@@ -435,12 +474,16 @@ namespace WebApplication1.Controllers
                         Birthday = reader.GetDateTime(reader.GetOrdinal("Birthday")),
                         Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
                         IsHospitalized = reader.GetString(reader.GetOrdinal("IsHospitalized")),
-                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
-                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
+                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
+                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
                         DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("DischargeStatus")),
                         TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferHospital")),
                         OtherDischargeStatus = reader.IsDBNull(reader.GetOrdinal("OtherDischargeStatus")) ? string.Empty : reader.GetString(reader.GetOrdinal("OtherDischargeStatus")),
-                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("AdmitHospital"))
+                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital")) ? string.Empty : reader.GetString(reader.GetOrdinal("AdmitHospital")),
+                        Occupation = reader.IsDBNull(reader.GetOrdinal("Occupation")) ? string.Empty : reader.GetString(reader.GetOrdinal("Occupation")),
+                        HasMajorInjury = reader.GetBoolean(reader.GetOrdinal("HasMajorInjury")),
+                        HasDisability = reader.GetBoolean(reader.GetOrdinal("HasDisability")),
+                        LastModifiedAt = reader.GetDateTime(reader.GetOrdinal("LastModifiedAt"))
                     };
 
                     result.Add(patient);
@@ -451,11 +494,10 @@ namespace WebApplication1.Controllers
 
             return Task.FromResult((result, totalCount));
         }
-
-        public Task<List<PatientDBModel>> QueryPatientList(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null)
+        public Task<List<PatientDBModel>> QueryPatientList(long? patientId = null, string? idNo = null, string? familyName = null, string? givenName = null, string? dischargeStatus = null, string? transferHospital = null, string? occupation = null, bool? hasMajorInjury = null, bool? hasDisability = null)
         {
             var result = new List<PatientDBModel>();
-            SqlConnection connection = new SqlConnection(ConnStr);
+            using var connection = new SqlConnection(ConnStr);
             var param = new List<SqlParameter>();
             var queryStr = @"SELECT PatientId
                                     , IdNo
@@ -473,6 +515,10 @@ namespace WebApplication1.Controllers
                                     , TransferHospital
                                     , OtherDischargeStatus
                                     , AdmitHospital
+                                    , Occupation
+                                    , HasMajorInjury
+                                    , HasDisability
+                                    , LastModifiedAt
                             FROM DB1.dbo.Patient
                             WHERE 1=1 ";
 
@@ -515,6 +561,24 @@ namespace WebApplication1.Controllers
                 param.Add(new SqlParameter("@TransferHospital", transferHospital));
             }
 
+            if (!string.IsNullOrWhiteSpace(occupation))
+            {
+                queryStr += " AND Occupation LIKE '%' + @Occupation + '%'";
+                param.Add(new SqlParameter("@Occupation", occupation));
+            }
+
+            if (hasMajorInjury.HasValue)
+            {
+                queryStr += " AND HasMajorInjury = @HasMajorInjury ";
+                param.Add(new SqlParameter("@HasMajorInjury", hasMajorInjury.Value));
+            }
+
+            if (hasDisability.HasValue)
+            {
+                queryStr += " AND HasDisability = @HasDisability ";
+                param.Add(new SqlParameter("@HasDisability", hasDisability.Value));
+            }
+
             SqlCommand command = new SqlCommand(queryStr, connection);
 
             foreach (var p in param)
@@ -541,27 +605,16 @@ namespace WebApplication1.Controllers
                         Birthday = reader.GetDateTime(reader.GetOrdinal("Birthday")),
                         Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
                         IsHospitalized = reader.GetString(reader.GetOrdinal("IsHospitalized")),
-                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate"))
-                            ? (DateTime?)null
-                            : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
-
-                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate"))
-                            ? (DateTime?)null
-                            : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
-
-                        DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("DischargeStatus")),
-
-                        TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("TransferHospital")),
-                        OtherDischargeStatus = reader.IsDBNull(reader.GetOrdinal("OtherDischargeStatus"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("OtherDischargeStatus")),
-                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("AdmitHospital"))
+                        AdmitDate = reader.IsDBNull(reader.GetOrdinal("AdmitDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("AdmitDate")),
+                        DischargeDate = reader.IsDBNull(reader.GetOrdinal("DischargeDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DischargeDate")),
+                        DischargeStatus = reader.IsDBNull(reader.GetOrdinal("DischargeStatus")) ? null : reader.GetString(reader.GetOrdinal("DischargeStatus")),
+                        TransferHospital = reader.IsDBNull(reader.GetOrdinal("TransferHospital")) ? null : reader.GetString(reader.GetOrdinal("TransferHospital")),
+                        OtherDischargeStatus = reader.IsDBNull(reader.GetOrdinal("OtherDischargeStatus")) ? null : reader.GetString(reader.GetOrdinal("OtherDischargeStatus")),
+                        AdmitHospital = reader.IsDBNull(reader.GetOrdinal("AdmitHospital")) ? null : reader.GetString(reader.GetOrdinal("AdmitHospital")),
+                        Occupation = reader.IsDBNull(reader.GetOrdinal("Occupation")) ? null : reader.GetString(reader.GetOrdinal("Occupation")),
+                        HasMajorInjury = reader.GetBoolean(reader.GetOrdinal("HasMajorInjury")),
+                        HasDisability = reader.GetBoolean(reader.GetOrdinal("HasDisability")),
+                        LastModifiedAt = reader.GetDateTime(reader.GetOrdinal("LastModifiedAt"))
                     };
 
                     result.Add(patient);
@@ -576,7 +629,6 @@ namespace WebApplication1.Controllers
 
             return Task.FromResult(result);
         }
-        
         public Task<bool> UpdatePatient(PatientDBModel patient)
         {
             bool result = false;
@@ -596,7 +648,11 @@ namespace WebApplication1.Controllers
                                    DischargeStatus = @DischargeStatus,
                                    TransferHospital = @TransferHospital,
                                    OtherDischargeStatus = @OtherDischargeStatus, 
-                                   AdmitHospital = @AdmitHospital 
+                                   AdmitHospital = @AdmitHospital,
+                                   Occupation = @Occupation,
+                                   HasMajorInjury = @HasMajorInjury,
+                                   HasDisability = @HasDisability,
+                                   LastModifiedAt = SYSDATETIME()
                                WHERE PatientId = @PatientId";
 
             SqlCommand command = new SqlCommand(inserteStr, connection);
@@ -611,12 +667,15 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@Birthday", patient.Birthday.ToString("yyyy/MM/dd")));
             command.Parameters.Add(new SqlParameter("@Address", patient.Address));
             command.Parameters.Add(new SqlParameter("@IsHospitalized", patient.IsHospitalized));
-            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
-            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value)); // 👈 處理 Null
+            command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
+            command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
             command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
             command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus)); 
             command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital)); 
+            command.Parameters.Add(new SqlParameter("@Occupation", string.IsNullOrWhiteSpace(patient.Occupation) ? DBNull.Value : patient.Occupation));
+            command.Parameters.Add(new SqlParameter("@HasMajorInjury", patient.HasMajorInjury));
+            command.Parameters.Add(new SqlParameter("@HasDisability", patient.HasDisability));
 
             connection.Open();
             var updateResult = command.ExecuteNonQuery();
@@ -653,6 +712,10 @@ namespace WebApplication1.Controllers
                 TransferHospital = viewModel.TransferHospital,
                 OtherDischargeStatus = viewModel.OtherDischargeStatus,
                 AdmitHospital = viewModel.AdmitHospital,
+                Occupation = viewModel.Occupation,
+                HasMajorInjury = viewModel.HasMajorInjury,
+                HasDisability = viewModel.HasDisability,
+                LastModifiedAt = viewModel.LastModifiedAt
             };
         }
 
@@ -676,9 +739,17 @@ namespace WebApplication1.Controllers
                 TransferHospital = dbModel.TransferHospital,
                 OtherDischargeStatus = dbModel.OtherDischargeStatus,
                 AdmitHospital = dbModel.AdmitHospital,
+                Occupation = dbModel.Occupation,
+                HasMajorInjury = dbModel.HasMajorInjury,
+                HasDisability = dbModel.HasDisability,
+                LastModifiedAt = dbModel.LastModifiedAt
             };
         }
 
         #endregion Private
     }
 }
+
+
+
+

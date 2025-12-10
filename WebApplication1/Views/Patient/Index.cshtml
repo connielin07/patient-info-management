@@ -59,6 +59,7 @@
             <div class="section-actions d-flex flex-wrap">
                 <button type="button" class="btn btn-success" onclick="Add()">新增</button>
                 <button type="button" class="btn btn-outline-primary" onclick="Search()">查詢</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="resetSearch()">重置查詢</button>
             </div>
         </div>
 
@@ -78,6 +79,28 @@
             <div class="col-md-3 col-sm-6">
                 <label class="form-label">名</label>
                 <input type="text" class="form-control" id="SearchGivenName" name="SearchGivenName" value="" placeholder="例：小明">
+            </div>
+        </div>
+        <div class="row g-3 mt-1">
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">職業</label>
+                <input type="text" class="form-control" id="SearchOccupation" name="SearchOccupation" value="" placeholder="例：工程師">
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">重大傷病</label>
+                <select class="form-control" id="SearchHasMajorInjury" name="SearchHasMajorInjury">
+                    <option value="">請下拉選單</option>
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label">身心障礙</label>
+                <select class="form-control" id="SearchHasDisability" name="SearchHasDisability">
+                    <option value="">請下拉選單</option>
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
             </div>
         </div>
     </div>
@@ -107,6 +130,10 @@
                         <th>其他出院狀況</th>
                         <th>入院院名</th>
                         <th>轉院院名</th>
+                        <th>職業</th>
+                        <th>重大傷病</th>
+                        <th>身心障礙</th>
+                        <th>最新修改時間</th>
                         <th>匯出FHIR</th>
                     </tr>
                 </thead>
@@ -186,6 +213,26 @@
                 <textarea class="form-control" rows="3" id="Address" name="Address" placeholder="例：台北市中正區仁愛路一段">@PatientViewModel.Address</textarea>
             </div>
         </div>
+        <div class="row g-3">
+            <div class="form-group col-md-4">
+                <label class="control-label">職業</label>
+                <input type="text" class="form-control" id="Occupation" name="Occupation" value="@PatientViewModel.Occupation" placeholder="例：工程師">
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">重大傷病</label>
+                <select class="form-control" id="HasMajorInjury" name="HasMajorInjury">
+                    <option value="false" selected="@(PatientViewModel.HasMajorInjury == false)">否</option>
+                    <option value="true" selected="@(PatientViewModel.HasMajorInjury)">是</option>
+                </select>
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">身心障礙</label>
+                <select class="form-control" id="HasDisability" name="HasDisability">
+                    <option value="false" selected="@(PatientViewModel.HasDisability == false)">否</option>
+                    <option value="true" selected="@(PatientViewModel.HasDisability)">是</option>
+                </select>
+            </div>
+        </div>
 
         <div class="row g-3">
             <div class="form-group col-md-3">
@@ -235,6 +282,13 @@
             <div class="form-group col-md-4 col-sm-6" id="OtherDischargeStatusGroup" style="display:none">
                 <label class="form-label">其他出院狀況</label>
                 <input type="text" class="form-control" id="OtherDischargeStatus" name="OtherDischargeStatus" value="@PatientViewModel.OtherDischargeStatus" placeholder="請輸入其他出院狀況">
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="form-group col-md-4 col-sm-6">
+                <label class="form-label">最新修改時間</label>
+                <input type="text" class="form-control" id="LastModifiedAt" name="LastModifiedAt" value="" placeholder="儲存後系統自動填入" readonly>
             </div>
         </div>
 
@@ -476,6 +530,9 @@
                 idNo: document.getElementById("SearchIdNo").value,
                 familyName: document.getElementById("SearchFamilyName").value,
                 givenName: document.getElementById("SearchGivenName").value,
+                occupation: document.getElementById("SearchOccupation").value,
+                hasMajorInjury: document.getElementById("SearchHasMajorInjury").value,
+                hasDisability: document.getElementById("SearchHasDisability").value,
                 admitDate: document.querySelector('input[name="admitDate"]').value,
                 dischargeDate: document.querySelector('input[name="dischargeDate"]').value,
                 dischargeStatus: document.getElementById("DischargeStatus").value,
@@ -512,66 +569,89 @@
         });
     };
 
-    function SearchList(result) {
+    function resetSearch() {
+        document.getElementById("SearchPatientId").value = "";
+        document.getElementById("SearchIdNo").value = "";
+        document.getElementById("SearchFamilyName").value = "";
+        document.getElementById("SearchGivenName").value = "";
+        document.getElementById("SearchOccupation").value = "";
+        document.getElementById("SearchHasMajorInjury").value = "";
+        document.getElementById("SearchHasDisability").value = "";
+        currentPage = 1;
+        pageSize = 20;
+        document.getElementById("pageSizeInput").value = pageSize;
+        document.getElementById("gotoPageInput").value = currentPage;
+        Search();
+    }
+
+        function SearchList(result) {
         var table = document.getElementById("patientList");
-        
-        if (table.rows.length > 1 ) {
+        if (table.rows.length > 1) {
             for (var i = 1; i < table.rows.length;) {
                 table.deleteRow(i);
             }
         }
 
+        const yesNoBadge = (val) => val ? '<span class="badge-chip success">是</span>' : '<span class="badge-chip muted">否</span>';
+        const formatIfValid = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            if (date.getFullYear() > 1 && !isNaN(date)) {
+                return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            }
+            return 'N/A';
+        };
+        const formatDateTime = (value) => {
+            if (!value) return 'N/A';
+            const d = new Date(value);
+            if (isNaN(d)) return 'N/A';
+            return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        };
+
         for (let i = 0; i < result.length; i++) {
             var row = table.insertRow(i + 1);
-            
-            var cell1 = row.insertCell(0); // 1. 修改/刪除按鈕
-            var cell2 = row.insertCell(1); // 2. 病歷號
-            var cell3 = row.insertCell(2); // 3. 姓名
-            var cell4 = row.insertCell(3); // 4. 性別
-            var cell5 = row.insertCell(4); // 5. 身分證字號
-            var cell6 = row.insertCell(5); // 6. 生日
-            var cell7 = row.insertCell(6); // 7. 是否住院
-            var cell8 = row.insertCell(7); // 8. 入院日期
-            var cell9 = row.insertCell(8); // 9. 出院日期
-            var cell10 = row.insertCell(9); // 10. 出院狀況
-            var cell11 = row.insertCell(10); // 11. 其他出院狀況 
-            var cell12 = row.insertCell(11); // 12. 入院院名 
-            var cell13 = row.insertCell(12); // 13. 轉院院名 
-            var cell14 = row.insertCell(13); // 14. 匯出FHIR
+            var cell1 = row.insertCell(0); // 修改/刪除按鈕
+            var cell2 = row.insertCell(1); // 病歷號
+            var cell3 = row.insertCell(2); // 姓名
+            var cell4 = row.insertCell(3); // 性別
+            var cell5 = row.insertCell(4); // 身分證字號
+            var cell6 = row.insertCell(5); // 生日
+            var cell7 = row.insertCell(6); // 是否住院
+            var cell8 = row.insertCell(7); // 入院日期
+            var cell9 = row.insertCell(8); // 出院日期
+            var cell10 = row.insertCell(9); // 出院狀況
+            var cell11 = row.insertCell(10); // 其他出院狀況
+            var cell12 = row.insertCell(11); // 入院院名
+            var cell13 = row.insertCell(12); // 轉院院名
+            var cell14 = row.insertCell(13); // 職業
+            var cell15 = row.insertCell(14); // 重大傷病
+            var cell16 = row.insertCell(15); // 身心障礙
+            var cell17 = row.insertCell(16); // 最新修改時間
+            var cell18 = row.insertCell(17); // 匯出FHIR
 
-            cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
-                               <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
+            cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(${result[i].patientId} ) ">修改</button>
+                               <button type="button" class="btn btn-danger" onClick="Delete(${result[i].patientId})">刪除</button>`;
             cell2.innerHTML = result[i].patientId;
             cell3.innerHTML = result[i].familyName + result[i].givenName;
             cell4.innerHTML = (result[i].gender == 'M') ? '男' : '女';
             cell5.innerHTML = result[i].idNo;
             cell6.innerHTML = new Date(result[i].birthday).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-
-            // 是否住院
-            cell7.innerHTML = renderHospitalizedBadge(result[i].isHospitalized); // 👈 調整 IsHospitalized
-
-            // 轉換日期格式，如果日期是 MinValue 則顯示 N/A
-            const formatIfValid = (dateString) => {
-                const date = new Date(dateString);
-                // 檢查是否是有效的日期 (非 0001/01/01 且非無效日期)
-                if (date.getFullYear() > 1 && !isNaN(date)) {
-                    return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-                }
-                return 'N/A';
-            };
-
-            cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
-            cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
+            cell7.innerHTML = renderHospitalizedBadge(result[i].isHospitalized);
+            cell8.innerHTML = formatIfValid(result[i].admitDate);
+            cell9.innerHTML = formatIfValid(result[i].dischargeDate);
             cell10.innerHTML = renderDischargeBadge(result[i].dischargeStatus);
-            cell11.innerHTML = result[i].otherDischargeStatus ? result[i].otherDischargeStatus : 'N/A'; // 👈 其他出院狀況
-            cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A'; // 👈 入院院名
-            cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A'; // 👈 轉院院名
+            cell11.innerHTML = result[i].otherDischargeStatus ? result[i].otherDischargeStatus : 'N/A';
+            cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A';
+            cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A';
+            cell14.innerHTML = result[i].occupation ? result[i].occupation : 'N/A';
+            cell15.innerHTML = yesNoBadge(result[i].hasMajorInjury);
+            cell16.innerHTML = yesNoBadge(result[i].hasDisability);
+            cell17.innerHTML = formatDateTime(result[i].lastModifiedAt);
+            cell18.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(${result[i].patientId})">匯出FHIR</button>`;
+        }
+    }
 
-            // 最右邊匯出FHIR按鈕
-            cell14.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;        }
-    };
-
-    function Submit(){
+    function Submit() {
         var dischargeStatus = document.getElementById("DischargeStatus").value;
         var transferHospital = document.getElementById("TransferHospital").value;
         var admitHospital = document.getElementById("AdmitHospital").value;
@@ -603,7 +683,10 @@
             DischargeStatus: dischargeStatus,
             TransferHospital: transferHospital, 
             OtherDischargeStatus: otherDischargeStatus, 
-            AdmitHospital: admitHospital 
+            AdmitHospital: admitHospital,
+            Occupation: document.getElementById("Occupation").value,
+            HasMajorInjury: document.getElementById("HasMajorInjury").value === "true",
+            HasDisability: document.getElementById("HasDisability").value === "true"
         }
 
         console.log('formData', formData);
@@ -708,6 +791,9 @@
         document.getElementById("Gender").value = "";
         document.getElementById("Telecom").value = "";
         document.getElementById("Address").value = "";
+        document.getElementById("Occupation").value = "";
+        document.getElementById("HasMajorInjury").value = "false";
+        document.getElementById("HasDisability").value = "false";
         document.getElementById("IsHospitalized").value = ""; // 👈 初始為空（請下拉選單）
         
         document.getElementById("AdmitDate").value = new Date().toLocaleDateString('en-CA');       // 👈 新增/修改這行
@@ -739,6 +825,9 @@
                     document.getElementById("Gender").value = item.gender;
                     document.getElementById("Telecom").value = item.telecom;
                     document.getElementById("Address").value = item.address;
+                    document.getElementById("Occupation").value = item.occupation || "";
+                    document.getElementById("HasMajorInjury").value = item.hasMajorInjury ? "true" : "false";
+                    document.getElementById("HasDisability").value = item.hasDisability ? "true" : "false";
                     document.getElementById("IsHospitalized").value = item.isHospitalized;
                     document.getElementById("AdmitDate").value = new Date(item.admitDate).toLocaleDateString('en-CA');
                     document.getElementById("DischargeDate").value = new Date(item.dischargeDate).toLocaleDateString('en-CA');
@@ -749,8 +838,9 @@
                     if (item.dischargeStatus === "轉院") {
                         document.getElementById("TransferHospital").value = item.transferHospital;
                     } else {
-                        document.getElementById("TransferHospital").value = ""; 
+                        document.getElementById("TransferHospital").value = "";
                     }
+                    document.getElementById("LastModifiedAt").value = item.lastModifiedAt ? new Date(item.lastModifiedAt).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : "";
                     return;
                 }
                 showToast(result.message || "查詢失敗", "danger");
@@ -863,3 +953,7 @@
     //     }
     // });
 </script>
+
+
+
+

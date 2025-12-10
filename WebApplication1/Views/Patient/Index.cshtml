@@ -330,6 +330,14 @@
     </div>
 </div>
 
+<div id="aiToastHolder" class="ai-toast-holder"></div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
 <script>
     function toggleHospitalized(value) {
         const row = document.getElementById("hospitalizedDateRow");
@@ -758,6 +766,53 @@
             if (!validateAdmitDischargeDates()) {
                 return; // 如果驗證失敗，則停止送出
             }
+        }
+
+       let errorFields = []; // 用於收集所有未通過驗證的欄位名稱
+
+        // (A) 必填欄位檢查
+        if (!formData.FamilyName) {
+            errorFields.push("姓");
+        }
+        if (!formData.GivenName) {
+            errorFields.push("名");
+        }
+        if (!formData.IdNo) {
+            errorFields.push("身分證字號");
+        }
+        const birthdayValue = formData.Birthday;
+        // 檢查生日是否為空或年份無效 (防止 0001/01/01 傳入)
+        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) {
+            errorFields.push("生日");
+        }
+        if (!formData.Gender) {
+            errorFields.push("性別");
+        }
+        if (!formData.Telecom) {
+            errorFields.push("聯絡電話");
+        }
+        if (!formData.Address) {
+            errorFields.push("地址");
+        }
+        if (!formData.IsHospitalized) {
+            errorFields.push("是否住院");
+        }
+
+        // (B) 日期邏輯檢查：入院日期不可晚於出院日期
+        if (formData.IsHospitalized === "Y" &&
+            formData.AdmitDate &&
+            formData.DischargeDate) {
+
+            const datesValid = validateAdmitDischargeDates();
+            if (!datesValid) {
+                errorFields.push("入院/出院日期邏輯錯誤");
+            }
+        }
+        if (errorFields.length > 0) {
+        // 組合錯誤訊息
+        const message = `尚有欄位未填寫或資料有誤，請檢查以下欄位：${errorFields.join('、')}。`;
+        showToast(message, "danger");
+        return; // 阻止 AJAX 送出
         }
 
        let errorFields = []; // 用於收集所有未通過驗證的欄位名稱

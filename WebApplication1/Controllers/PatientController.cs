@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Data.SqlClient;
-using System.Data;
-using WebApplication1.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Data;
+using System.Data.SqlClient;
 using System.Text;
 using System.Text.Json;
+using WebApplication1.Models;
 
 namespace WebApplication1.Controllers
 {
@@ -14,10 +16,14 @@ namespace WebApplication1.Controllers
         private readonly string ConnStr;
         private string admitDateString;
         private string dischargeDateString;
+        private readonly Kernel _kernel;
 
-        public PatientController(IConfiguration configuration)
+
+        // 更新建構函式，注入 IConfiguration 和 Kernel
+        public PatientController(IConfiguration configuration, Kernel kernel)
         {
             ConnStr = configuration.GetConnectionString("PatientDatabase") ?? throw new InvalidOperationException("Connection string 'PatientDatabase' not found.");
+            _kernel = kernel; // 👈 賦值
         }
 
         public IActionResult Index()
@@ -284,7 +290,48 @@ namespace WebApplication1.Controllers
             return File(bytes, "application/fhir+json", fileName);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GenerateAITip()
+        {
+            // 1. 定義給 AI 的提示 (Prompt)
+            var promptTemplate = @"
+                請以輕鬆幽默或關懷的語氣，為一位長時間專注在病人資訊清單上的醫生，寫一句簡短的休息或喝水提醒。
+                只需提供提醒內容，不要任何多餘的開頭或結尾語，例如 '提醒：' 或 '請注意：'。
+                你的回答必須簡潔，不超過一句話。
+            ";
 
+            try
+            {
+                // 2. 使用 Semantic Kernel 呼叫 OpenAI API
+                var result = await _kernel.InvokePromptAsync(
+                    promptTemplate,
+                    new(new OpenAIPromptExecutionSettings()
+                    {
+                        Temperature = 0.8, // 提高隨機性
+                        MaxTokens = 50     // 限制長度
+                    })
+                );
+
+                var tip = result.ToString().Trim();
+
+                if (!string.IsNullOrWhiteSpace(tip))
+                {
+                    // 成功時回傳 JSON，包含 AI 生成的提示
+                    return Ok(new { Tip = tip });
+                }
+                else
+                {
+                    // API 呼叫成功但沒有內容
+                    return Ok(new { Tip = "休息是最好的醫療處方，請稍作休息吧。" });
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕捉網路或服務錯誤，返回預設的提示
+                System.Diagnostics.Debug.WriteLine($"Semantic Kernel Error: {ex.Message}");
+                return Ok(new { Tip = "系統忙碌中，建議您閉眼休息 30 秒。" });
+            }
+        }
 
         #region SQL
         public Task<long> InsertPatient(PatientDBModel patient)

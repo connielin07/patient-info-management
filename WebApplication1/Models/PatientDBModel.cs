@@ -20,8 +20,8 @@
         public string AdmitHospital { get; set; }
         public string TransferHospital { get; set; }
         public string Occupation { get; set; }
-        public bool HasMajorIllness { get; set; }
+        public bool HasMajorInjury { get; set; }
         public bool HasDisability { get; set; }
-        public DateTime LastModified { get; set; }
+        public DateTime LastModifiedAt { get; set; }
     }
 }

@@ -18,21 +18,7 @@
 	[AdmitHospital] NVARCHAR(100) NULL,
 	[TransferHospital] NVARCHAR(100) NULL,
 	[Occupation] NVARCHAR(100) NULL,
-	[HasMajorIllness] BIT NOT NULL CONSTRAINT DF_Patient_HasMajorIllness DEFAULT 0,
-	[HasDisability] BIT NOT NULL CONSTRAINT DF_Patient_HasDisability DEFAULT 0,
-	[LastModified] DATETIME NOT NULL CONSTRAINT DF_Patient_LastModified DEFAULT (GETDATE())
+	[HasMajorInjury] BIT NOT NULL DEFAULT 0,
+	[HasDisability] BIT NOT NULL DEFAULT 0,
+	[LastModifiedAt] DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 )
-
-GO
-CREATE TRIGGER TRG_Patient_Update_LastModified
-ON dbo.Patient
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-    UPDATE dbo.Patient
-    SET LastModified = GETDATE()
-    FROM Inserted i
-    WHERE dbo.Patient.PatientId = i.PatientId;
-END
-GO

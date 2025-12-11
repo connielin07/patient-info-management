@@ -88,7 +88,7 @@
             </div>
             <div class="col-md-4 col-sm-6">
                 <label class="form-label">重大傷病</label>
-                <select class="form-control" id="SearchHasMajorIllness" name="SearchHasMajorIllness">
+                <select class="form-control" id="SearchHasMajorInjury" name="SearchHasMajorInjury">
                     <option value="">請下拉選單</option>
                     <option value="true">是</option>
                     <option value="false">否</option>
@@ -220,10 +220,10 @@
             </div>
             <div class="form-group col-md-4">
                 <label class="control-label">重大傷病</label>
-                <select class="form-control" id="HasMajorIllness" name="HasMajorIllness">
+                <select class="form-control" id="HasMajorInjury" name="HasMajorInjury">
                     <option value="">請下拉選單</option>
-                    <option value="true" selected="@(PatientViewModel.HasMajorIllness ? "selected" : null)">是</option>
-                    <option value="false" selected="@(!PatientViewModel.HasMajorIllness ? "selected" : null)">否</option>
+                    <option value="true" selected="@(PatientViewModel.HasMajorInjury ? "selected" : null)">是</option>
+                    <option value="false" selected="@(!PatientViewModel.HasMajorInjury ? "selected" : null)">否</option>
                 </select>
             </div>
             <div class="form-group col-md-4">
@@ -553,7 +553,7 @@
         document.getElementById("SearchFamilyName").value = "";
         document.getElementById("SearchGivenName").value = "";
         document.getElementById("SearchOccupation").value = "";
-        document.getElementById("SearchHasMajorIllness").value = "";
+        document.getElementById("SearchHasMajorInjury").value = "";
         document.getElementById("SearchHasDisability").value = "";
         currentPage = 1;
         document.getElementById("gotoPageInput").value = currentPage;
@@ -579,7 +579,7 @@
                 familyName: document.getElementById("SearchFamilyName").value,
                 givenName: document.getElementById("SearchGivenName").value,
                 occupation: document.getElementById("SearchOccupation").value,
-                hasMajorIllness: parseBoolFilter("SearchHasMajorIllness"),
+                hasMajorInjury: parseBoolFilter("SearchHasMajorInjury"),
                 hasDisability: parseBoolFilter("SearchHasDisability"),
                 page: currentPage,
                 pageSize: pageSize
@@ -677,9 +677,9 @@
             cell12.innerHTML = result[i].admitHospital ? result[i].admitHospital : 'N/A'; // ?? 入院院名
             cell13.innerHTML = result[i].transferHospital ? result[i].transferHospital : 'N/A'; // ?? 轉院院名
             cell14.innerHTML = result[i].occupation ? result[i].occupation : 'N/A';
-            cell15.innerHTML = renderBooleanBadge(result[i].hasMajorIllness);
+            cell15.innerHTML = renderBooleanBadge(result[i].hasMajorInjury);
             cell16.innerHTML = renderBooleanBadge(result[i].hasDisability);
-            cell17.innerHTML = formatDateTime(result[i].lastModified);
+            cell17.innerHTML = formatDateTime(result[i].lastModifiedAt);
 
             // 最右邊匯出FHIR按鈕
             cell18.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
@@ -692,7 +692,7 @@
         var admitHospital = document.getElementById("AdmitHospital").value;
         var otherDischargeStatus = document.getElementById("OtherDischargeStatus").value;
         var occupation = document.getElementById("Occupation").value;
-        var hasMajorIllnessVal = document.getElementById("HasMajorIllness").value;
+        var hasMajorInjuryVal = document.getElementById("HasMajorInjury").value;
         var hasDisabilityVal = document.getElementById("HasDisability").value;
 
         if (dischargeStatus !== "轉院") {
@@ -723,7 +723,7 @@
             OtherDischargeStatus: otherDischargeStatus, 
             AdmitHospital: admitHospital,
             Occupation: occupation,
-            HasMajorIllness: hasMajorIllnessVal === "true",
+            HasMajorInjury: hasMajorInjuryVal === "true",
             HasDisability: hasDisabilityVal === "true"
         }
 
@@ -737,53 +737,6 @@
             if (!validateAdmitDischargeDates()) {
                 return; // 如果驗證失敗，則停止送出
             }
-        }
-
-       let errorFields = []; // 用於收集所有未通過驗證的欄位名稱
-
-        // (A) 必填欄位檢查
-        if (!formData.FamilyName) {
-            errorFields.push("姓");
-        }
-        if (!formData.GivenName) {
-            errorFields.push("名");
-        }
-        if (!formData.IdNo) {
-            errorFields.push("身分證字號");
-        }
-        const birthdayValue = formData.Birthday;
-        // 檢查生日是否為空或年份無效 (防止 0001/01/01 傳入)
-        if (!birthdayValue || new Date(birthdayValue).getFullYear() < 2) {
-            errorFields.push("生日");
-        }
-        if (!formData.Gender) {
-            errorFields.push("性別");
-        }
-        if (!formData.Telecom) {
-            errorFields.push("聯絡電話");
-        }
-        if (!formData.Address) {
-            errorFields.push("地址");
-        }
-        if (!formData.IsHospitalized) {
-            errorFields.push("是否住院");
-        }
-
-        // (B) 日期邏輯檢查：入院日期不可晚於出院日期
-        if (formData.IsHospitalized === "Y" &&
-            formData.AdmitDate &&
-            formData.DischargeDate) {
-
-            const datesValid = validateAdmitDischargeDates();
-            if (!datesValid) {
-                errorFields.push("入院/出院日期邏輯錯誤");
-            }
-        }
-        if (errorFields.length > 0) {
-        // 組合錯誤訊息
-        const message = `尚有欄位未填寫或資料有誤，請檢查以下欄位：${errorFields.join('、')}。`;
-        showToast(message, "danger");
-        return; // 阻止 AJAX 送出
         }
 
        let errorFields = []; // 用於收集所有未通過驗證的欄位名稱
@@ -877,7 +830,7 @@
         document.getElementById("Telecom").value = "";
         document.getElementById("Address").value = "";
         document.getElementById("Occupation").value = "";
-        document.getElementById("HasMajorIllness").value = "";
+        document.getElementById("HasMajorInjury").value = "";
         document.getElementById("HasDisability").value = "";
         document.getElementById("IsHospitalized").value = ""; // 👈 初始為空（請下拉選單）
         
@@ -912,7 +865,7 @@
                     document.getElementById("Telecom").value = item.telecom;
                     document.getElementById("Address").value = item.address;
                     document.getElementById("Occupation").value = item.occupation || "";
-                    document.getElementById("HasMajorIllness").value = item.hasMajorIllness === true ? "true" : (item.hasMajorIllness === false ? "false" : "");
+                    document.getElementById("HasMajorInjury").value = item.hasMajorInjury === true ? "true" : (item.hasMajorInjury === false ? "false" : "");
                     document.getElementById("HasDisability").value = item.hasDisability === true ? "true" : (item.hasDisability === false ? "false" : "");
                     document.getElementById("IsHospitalized").value = item.isHospitalized;
                     document.getElementById("AdmitDate").value = new Date(item.admitDate).toLocaleDateString('en-CA');

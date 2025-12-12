@@ -133,7 +133,6 @@
                         <th>職業</th>
                         <th>重大傷病</th>
                         <th>身心障礙</th>
-                        <th>最新修改時間</th>
                         <th>匯出FHIR</th>
                     </tr>
                 </thead>
@@ -547,7 +546,7 @@
         renderPageNumbers(totalPages);
     }
 
-    function ResetSearch() {
+    function clearSearchFields() {
         document.getElementById("SearchPatientId").value = "";
         document.getElementById("SearchIdNo").value = "";
         document.getElementById("SearchFamilyName").value = "";
@@ -557,7 +556,11 @@
         document.getElementById("SearchHasDisability").value = "";
         currentPage = 1;
         document.getElementById("gotoPageInput").value = currentPage;
-        Search();
+    }
+
+    function ResetSearch() {
+        clearSearchFields();
+        // 保留現有列表，不自動重新查詢
     }
 
     function Search() {
@@ -643,8 +646,7 @@
             var cell14 = row.insertCell(13); // 14. 職業
             var cell15 = row.insertCell(14); // 15. 重大傷病
             var cell16 = row.insertCell(15); // 16. 身心障礙
-            var cell17 = row.insertCell(16); // 17. 最新修改時間
-            var cell18 = row.insertCell(17); // 18. 匯出FHIR
+            var cell17 = row.insertCell(16); // 17. 匯出FHIR
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -679,10 +681,8 @@
             cell14.innerHTML = result[i].occupation ? result[i].occupation : 'N/A';
             cell15.innerHTML = renderBooleanBadge(result[i].hasMajorInjury);
             cell16.innerHTML = renderBooleanBadge(result[i].hasDisability);
-            cell17.innerHTML = formatDateTime(result[i].lastModifiedAt);
-
             // 最右邊匯出FHIR按鈕
-            cell18.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
+            cell17.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
         }
     };
 
@@ -802,6 +802,8 @@
                     document.getElementById('editForm').style.display = "none";
                     document.getElementById('submitButton').style.display = "none";
 
+                    // 清空查詢條件並重新查詢，讓使用者立即看到完整清單與新資料
+                    clearSearchFields();
                     Search();
                     showToast("儲存成功", "success");
                     return;

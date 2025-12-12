@@ -918,53 +918,48 @@
 </script>
 
 <script>
-    // 定義 AI 提示訊息清單
-    const aiTips = [
-        "您已專注超過一分鐘，建議起身走動並讓眼睛休息一下。",
-        "工作辛苦了！記得喝一杯水，保持身體水分充足。",
-        "給自己 30 秒的微休息時間，再回到工作崗位上吧。",
-        "眼睛疲勞嗎？看看遠處的景色，讓眼部肌肉放鬆。",
-        "休息是為了走更長遠的路，現在就是最佳的充電時刻！",
-        "站起來伸個懶腰，簡單的伸展有助於血液循環。",
-        "您已經持續工作了一段時間，是時候來點咖啡或茶了。"
-    ];
-    let tipIndex = 0;
     let intervalTimer = null;
     const INTERVAL_MS = 60 * 1000; // 固定間隔時間：60 秒 = 1 分鐘
 
-        // 顯示 AI 提示的函數
+    // 顯示 AI 提示的函數：從後端 (PatientController/GenerateAITip) 取得內容
     function showAITip() {
-        // 移除對 loadingOverlay 的引用
         const aiToastHolder = document.getElementById("aiToastHolder");
 
-        // 移除 1. 顯示載入中畫面
-        // loadingOverlay.style.display = "flex";
+        // 使用 AJAX 呼叫後端 C# Action
+        $.ajax({
+            url: '@Url.Action("GenerateAITip", "Patient")', // 呼叫 PatientController 中新的 GenerateAITip 方法
+            method: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                // 從 JSON 回應中取得 AI 生成的提示 (Tip)
+                // 後端回傳格式為 { "Tip": "..." }
+                const message = response.tip || "休息一下吧！工作效率更高喔。";
 
-        // 直接執行提示邏輯，不再需要模擬延遲
-        // 取得提示訊息
-        const message = aiTips[tipIndex];
-        tipIndex = (tipIndex + 1) % aiTips.length; // 循環使用提示
+                // 建立提示 Toast
+                const toast = document.createElement("div");
+                toast.className = 'ai-toast';
+                toast.innerText = message;
+                aiToastHolder.appendChild(toast);
 
-        // 建立提示 Toast
-        const toast = document.createElement("div");
-        toast.className = 'ai-toast';
-        toast.innerText = message;
-        aiToastHolder.appendChild(toast);
+                // 淡入效果
+                setTimeout(() => toast.classList.add("show"), 10);
 
-        // 淡入效果
-        setTimeout(() => toast.classList.add("show"), 10);
-
-        // 5 秒後自動消失
-        setTimeout(() => {
-            toast.classList.remove("show");
-            // 移除 DOM
-            setTimeout(() => toast.remove(), 500);
-        }, 5000);
-
-        // 移除舊的 setTimeout 區塊，因為不再需要載入延遲
+                // 5 秒後自動消失
+                setTimeout(() => {
+                    toast.classList.remove("show");
+                    // 移除 DOM
+                    setTimeout(() => toast.remove(), 500);
+                }, 5000);
+            },
+            error: function(err) {
+                // 如果後端呼叫失敗，顯示本地錯誤訊息
+                console.error("Failed to call AI API:", err);
+                showToast("連線 AI 服務失敗，請稍後再試。", "danger");
+            }
+        });
     }
 
-    // ⭐ 新的邏輯：設置固定間隔執行的計時器
+    // ⭐ 設置固定間隔執行的計時器 (與舊版相同，但功能已改變)
     function startIntervalTimer() {
         // 清除現有計時器，避免重複啟動
         if (intervalTimer) {
@@ -976,8 +971,6 @@
             showAITip();
         }, INTERVAL_MS);
     }
-
-    // 移除 setupActivityListeners 函數，因為不再需要監聽使用者活動
 
     // 頁面載入完成後立即啟動固定間隔計時器
     document.addEventListener('DOMContentLoaded', function() {
@@ -995,4 +988,3 @@
     //     }
     // })
 </script>
-

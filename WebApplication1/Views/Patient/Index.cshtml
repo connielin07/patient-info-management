@@ -45,7 +45,7 @@
 
 <div id="patientForm" class="patient-page">
     <div class="model-header">
-        <p class="eyebrow">Patient Management</p>
+        <p class="eyebrow">Patient Info Management</p>
         <h1 class="display-4">病人資訊清單</h1>
     </div>
 
@@ -269,18 +269,18 @@
             </div>
         </div>
 
-        <div id="dischargeDetailsRow" class="row g-3 mt-3" style="display: none;">
-            <div class="form-group col-md-4 col-sm-6" id="AdmitHospitalGroup" style="display:none">
+        <div id="dischargeDetailsRow" class="row g-3 mt-3 discharge-details-row" style="display: none;">
+            <div class="form-group col-md-4 col-sm-6 discharge-detail-field" id="AdmitHospitalGroup" style="display:none">
                 <label class="form-label">入院院名</label>
                 <input type="text" class="form-control" id="AdmitHospital" name="AdmitHospital" value="@PatientViewModel.AdmitHospital" placeholder="請輸入入院醫院名稱">
             </div>
 
-            <div class="form-group col-md-4 col-sm-6" id="TransferHospitalGroup" style="display:none">
+            <div class="form-group col-md-4 col-sm-6 discharge-detail-field" id="TransferHospitalGroup" style="display:none">
                 <label class="form-label">轉院院名</label>
                 <input type="text" class="form-control" id="TransferHospital" name="TransferHospital" value="@PatientViewModel.TransferHospital" placeholder="請輸入轉院醫院名稱">
             </div>
 
-            <div class="form-group col-md-4 col-sm-6" id="OtherDischargeStatusGroup" style="display:none">
+            <div class="form-group col-md-4 col-sm-6 discharge-detail-field" id="OtherDischargeStatusGroup" style="display:none">
                 <label class="form-label">其他出院狀況</label>
                 <input type="text" class="form-control" id="OtherDischargeStatus" name="OtherDischargeStatus" value="@PatientViewModel.OtherDischargeStatus" placeholder="請輸入其他出院狀況">
             </div>

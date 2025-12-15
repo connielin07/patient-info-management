@@ -266,6 +266,24 @@ textarea.form-control:focus {
   background: #f0f9f8;
 }
 
+.discharge-details-row {
+  --bs-gutter-x: 1.25rem;
+  --bs-gutter-y: 1.25rem;
+  gap: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+.discharge-details-row .discharge-detail-field {
+  flex: 1 1 250px;
+  min-width: 220px;
+  margin-bottom: 0;
+}
+
+.discharge-details-row .discharge-detail-field[style*="display:none"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .container {
   flex: 1 0 auto;
 }
@@ -304,6 +322,11 @@ textarea.form-control:focus {
   background: #fdecec;
   color: #a12d2d;
   border-color: rgba(204, 80, 80, 0.45);
+}
+.badge-chip.other {
+  background: #f4ecff;
+  color: #5c2d91;
+  border-color: rgba(110, 64, 170, 0.35);
 }
 
 .badge-chip.muted {

@@ -245,6 +245,13 @@ textarea.form-control:focus {
   letter-spacing: 0.01em;
 }
 
+.patient-table th:nth-child(18),
+.patient-table td:nth-child(18) {
+  /* Give 公費篩檢建議 column extra space */
+  min-width: 220px;
+  white-space: normal;
+}
+
 .patient-table thead th {
   position: sticky;
   top: 0;

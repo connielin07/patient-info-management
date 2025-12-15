@@ -368,21 +368,16 @@ namespace WebApplication1.Controllers
             // 組合輸入給 AI 的 Prompt
             // 這裡使用中文，並帶入病人的關鍵資訊
             var promptTemplate = $@"
-                你是一位資深的衛教專員，請根據以下病人資訊，簡短建議是否有適合的**公費**篩檢或健康檢查項目。
-                如果沒有明顯適合的項目，請禮貌地回答「目前沒有特別建議」。
+                客觀不偏袒的以衛教專員角度，根據以下病人資訊，只以列點方式簡短建議適合的「公費」癌症篩檢或健康檢查項目，不加前綴或後綴字
+                如：「大腸癌篩檢」、「B、C型肝炎篩檢」
+                若無適合項目，回答「目前沒有特別建議」
 
-                **病人資訊：**
                 年齡：{DateTime.Now.Year - patient.Birthday.Year} 歲 (生日：{patient.Birthday.ToString("yyyy-MM-dd")})
                 性別：{(patient.Gender == "M" ? "男" : "女")}
                 職業：{patient.Occupation ?? "N/A"}
                 重大傷病：{(patient.HasMajorInjury ? "是" : "否")}
                 身心障礙：{(patient.HasDisability ? "是" : "否")}
                 是否住院：{(patient.IsHospitalized == "Y" ? "是" : "否")}
-
-                **請以一句話的簡短且專業的語氣回答。**
-                例如：
-                - 「根據年齡和性別，建議您可以考慮國健署提供的成人健檢。」
-                - 「目前沒有特別建議。」
             ";
 
             try
@@ -407,7 +402,7 @@ namespace WebApplication1.Controllers
                 else
                 {
                     // AI 未回傳內容時，給一個預設禮貌回答
-                    return Ok(new { Status = "Success", Tip = "目前沒有特別建議。" });
+                    return Ok(new { Status = "Error", Tip = "目前沒有特別建議。" });
                 }
             }
             catch (Exception ex)

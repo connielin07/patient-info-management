@@ -23,6 +23,9 @@
         public bool HasMajorInjury { get; set; }
         public bool HasDisability { get; set; }
         public DateTime LastModifiedAt { get; set; }
-       
+
+        // 🌟 新增：AI 公費篩檢建議備註
+        public string? AITip { get; set; }
+
     }
 }

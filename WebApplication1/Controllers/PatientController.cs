@@ -356,6 +356,68 @@ namespace WebApplication1.Controllers
             }
         }
 
+        // 🌟 AI 公費篩檢建議 Action
+        [HttpPost]
+        public async Task<IActionResult> GenerateScreeningTip([FromForm] PatientViewModel patient)
+        {
+            if (patient == null)
+            {
+                return BadRequest("病人資料不得為空。");
+            }
+
+            // 組合輸入給 AI 的 Prompt
+            // 這裡使用中文，並帶入病人的關鍵資訊
+            var promptTemplate = $@"
+                你是一位資深的衛教專員，請根據以下病人資訊，簡短建議是否有適合的**公費**篩檢或健康檢查項目。
+                如果沒有明顯適合的項目，請禮貌地回答「目前沒有特別建議」。
+
+                **病人資訊：**
+                年齡：{DateTime.Now.Year - patient.Birthday.Year} 歲 (生日：{patient.Birthday.ToString("yyyy-MM-dd")})
+                性別：{(patient.Gender == "M" ? "男" : "女")}
+                職業：{patient.Occupation ?? "N/A"}
+                重大傷病：{(patient.HasMajorInjury ? "是" : "否")}
+                身心障礙：{(patient.HasDisability ? "是" : "否")}
+                是否住院：{(patient.IsHospitalized == "Y" ? "是" : "否")}
+
+                **請以一句話的簡短且專業的語氣回答。**
+                例如：
+                - 「根據年齡和性別，建議您可以考慮國健署提供的成人健檢。」
+                - 「目前沒有特別建議。」
+            ";
+
+            try
+            {
+                // 使用 Semantic Kernel 呼叫 OpenAI API
+                var result = await _kernel.InvokePromptAsync(
+                    promptTemplate,
+                    new(new OpenAIPromptExecutionSettings()
+                    {
+                        Temperature = 0.5, // 保持一定程度的準確性
+                        MaxTokens = 150   // 限制長度
+                    })
+                );
+
+                var tip = result.ToString().Trim();
+
+                if (!string.IsNullOrWhiteSpace(tip))
+                {
+                    // 成功時回傳 JSON，包含 AI 生成的提示
+                    return Ok(new { Status = "Success", Tip = tip });
+                }
+                else
+                {
+                    // AI 未回傳內容時，給一個預設禮貌回答
+                    return Ok(new { Status = "Success", Tip = "目前沒有特別建議。" });
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕捉網路或服務錯誤
+                System.Diagnostics.Debug.WriteLine($"AI Screening Tip Error: {ex.Message}");
+                return StatusCode(500, new { Status = "Error", Error = "AI 服務連線失敗，請稍後再試。" });
+            }
+        }
+
         #region SQL
         public Task<long> InsertPatient(PatientDBModel patient)
         {

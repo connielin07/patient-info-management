@@ -41,6 +41,29 @@
         transform: translateX(0);
     }
 
+    .spinner-border {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        vertical-align: text-bottom;
+        border: 0.15em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        -webkit-animation: spinner-border .75s linear infinite;
+        animation: spinner-border .75s linear infinite;
+    }
+
+    @@keyframes spinner-border {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .tip-text {
+        /* 讓文字保持在一行，但可以換行 */
+        white-space: normal;
+        word-break: break-word;
+    }
 </style>
 
 <div id="patientForm" class="patient-page">
@@ -134,6 +157,7 @@
                         <th>重大傷病</th>
                         <th>身心障礙</th>
                         <th>匯出FHIR</th>
+                        <th>公費篩檢建議</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -647,6 +671,7 @@
             var cell15 = row.insertCell(14); // 15. 重大傷病
             var cell16 = row.insertCell(15); // 16. 身心障礙
             var cell17 = row.insertCell(16); // 17. 匯出FHIR
+            var cell18 = row.insertCell(17); // 18. 公費篩檢建議
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -683,6 +708,16 @@
             cell16.innerHTML = renderBooleanBadge(result[i].hasDisability);
             // 最右邊匯出FHIR按鈕
             cell17.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
+            cell18.innerHTML = `
+                <button type="button" class="btn btn-primary btn-sm mb-1" id="aiBtn_${result[i].patientId}"
+                    onclick="GenerateScreeningTip('${encodeURIComponent(JSON.stringify(result[i]))}', ${result[i].patientId})">
+                    AI 建議
+                </button>
+                <div id="aiLoading_${result[i].patientId}" class="spinner-border spinner-border-sm text-primary" role="status" style="display:none">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div id="aiResult_${result[i].patientId}" class="tip-text mt-1" style="font-size:0.8em;">${result[i].aitip || '點擊獲取建議'}</div>
+            `;
         }
     };
 
@@ -915,6 +950,62 @@
     function ExportFHIR(id) {
         // 直接用 GET 下載 FHIR JSON 檔
         window.location.href = '@Url.Content("~/Patient/ExportFHIR")' + '?patientId=' + id;
+    }
+
+        // 🌟 新增：呼叫 AI 公費篩檢建議
+    function GenerateScreeningTip(patientJson, patientId) {
+        // 1. 解析病人資料
+        const patientData = JSON.parse(decodeURIComponent(patientJson));
+
+        // 2. 取得 DOM 元素
+        const loadingEl = document.getElementById(`aiLoading_${patientId}`);
+        const resultEl = document.getElementById(`aiResult_${patientId}`);
+        const buttonEl = document.getElementById(`aiBtn_${patientId}`);
+
+        // 3. 顯示 Loading 狀態並禁用按鈕
+        loadingEl.style.display = 'inline-block';
+        resultEl.innerText = 'AI 正在分析中...';
+        buttonEl.disabled = true;
+
+        // 4. 準備傳輸給後端的資料 (只傳送必要欄位)
+        const formData = {
+            PatientId: patientData.patientId,
+            FamilyName: patientData.familyName,
+            GivenName: patientData.givenName,
+            Gender: patientData.gender,
+            Birthday: new Date(patientData.birthday).toISOString(), // 傳送標準 ISO 格式
+            Occupation: patientData.occupation,
+            IsHospitalized: patientData.isHospitalized,
+            HasMajorInjury: patientData.hasMajorInjury,
+            HasDisability: patientData.hasDisability
+        };
+
+        // 5. 呼叫後端 API
+        $.ajax({
+            url: '@Url.Content("~/Patient/GenerateScreeningTip")',
+            method: 'POST',
+            dataType: 'json',
+            data: formData, // 使用 patientData 作為表單數據
+            success: function (response) {
+                // 成功取得 AI 建議
+                const tip = response.tip || '無法取得建議，請稍後再試。';
+                resultEl.innerText = tip;
+
+                // 可以在這裡更新原始資料中的 aitip，但由於是即時查詢，只需更新顯示即可
+
+            },
+            error: function (err) {
+                // 處理錯誤
+                const errMsg = err.responseJSON && err.responseJSON.Error ? err.responseJSON.Error : 'AI 服務發生錯誤。';
+                resultEl.innerText = errMsg;
+                showToast(errMsg, "danger");
+            },
+            complete: function() {
+                // 無論成功或失敗，都移除 Loading 狀態並啟用按鈕
+                loadingEl.style.display = 'none';
+                buttonEl.disabled = false;
+            }
+        });
     }
 
 </script>

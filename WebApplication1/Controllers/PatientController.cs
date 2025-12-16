@@ -796,7 +796,7 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(new SqlParameter("@IsHospitalized", patient.IsHospitalized));
             command.Parameters.Add(new SqlParameter("@AdmitDate", patient.AdmitDate.HasValue ? patient.AdmitDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
             command.Parameters.Add(new SqlParameter("@DischargeDate", patient.DischargeDate.HasValue ? patient.DischargeDate.Value.ToString("yyyy/MM/dd") : DBNull.Value));
-            command.Parameters.Add(new SqlParameter("@DischargeStatus", patient.DischargeStatus));
+            command.Parameters.Add(new SqlParameter("@DischargeStatus", string.IsNullOrWhiteSpace(patient.DischargeStatus) ? DBNull.Value : patient.DischargeStatus));
             command.Parameters.Add(new SqlParameter("@TransferHospital", string.IsNullOrWhiteSpace(patient.TransferHospital) ? DBNull.Value : patient.TransferHospital));
             command.Parameters.Add(new SqlParameter("@OtherDischargeStatus", string.IsNullOrWhiteSpace(patient.OtherDischargeStatus) ? DBNull.Value : patient.OtherDischargeStatus)); 
             command.Parameters.Add(new SqlParameter("@AdmitHospital", string.IsNullOrWhiteSpace(patient.AdmitHospital) ? DBNull.Value : patient.AdmitHospital)); 

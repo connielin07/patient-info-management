@@ -156,6 +156,7 @@
                         <th>職業</th>
                         <th>重大傷病</th>
                         <th>身心障礙</th>
+                        <th>最後修改時間</th>
                         <th>匯出FHIR</th>
                         <th>公費篩檢建議</th>
                     </tr>
@@ -671,8 +672,9 @@
             var cell14 = row.insertCell(13); // 14. 職業
             var cell15 = row.insertCell(14); // 15. 重大傷病
             var cell16 = row.insertCell(15); // 16. 身心障礙
-            var cell17 = row.insertCell(16); // 17. 匯出FHIR
-            var cell18 = row.insertCell(17); // 18. 公費篩檢建議
+            var cell17 = row.insertCell(16); // 17. 最後修改時間
+            var cell18 = row.insertCell(17); // 18. 匯出FHIR
+            var cell19 = row.insertCell(18); // 19. 公費篩檢建議
 
             cell1.innerHTML = `<button type="button" class="btn btn-warning" onClick="Update(` + result[i].patientId + ` ) ">修改</button>
                                <button type="button" class="btn btn-danger" onClick="Delete(` + result[i].patientId + `)">刪除</button>`;
@@ -697,6 +699,24 @@
                 }
                 return 'N/A';
             };
+            const formatDateTime = (dateString) => {
+                if (!dateString) {
+                    return 'N/A';
+                }
+                const date = new Date(dateString);
+                if (date.getFullYear() > 1 && !isNaN(date)) {
+                    return date.toLocaleString('zh-TW', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+                return 'N/A';
+            };
+
+            const lastModifiedAt = result[i].lastModifiedAt ?? result[i].LastModifiedAt;
 
             cell8.innerHTML = formatIfValid(result[i].admitDate); // 👈 AdmitDate
             cell9.innerHTML = formatIfValid(result[i].dischargeDate); // 👈 DischargeDate
@@ -707,9 +727,10 @@
             cell14.innerHTML = result[i].occupation ? result[i].occupation : 'N/A';
             cell15.innerHTML = renderBooleanBadge(result[i].hasMajorInjury);
             cell16.innerHTML = renderBooleanBadge(result[i].hasDisability);
+            cell17.innerHTML = formatDateTime(lastModifiedAt);
             // 最右邊匯出FHIR按鈕
-            cell17.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
-            cell18.innerHTML = `
+            cell18.innerHTML = `<button type="button" class="btn btn-info" onClick="ExportFHIR(` + result[i].patientId + `)">匯出FHIR</button>`;
+            cell19.innerHTML = `
                 <button type="button" class="btn btn-primary btn-sm mb-1" id="aiBtn_${result[i].patientId}"
                     onclick="GenerateScreeningTip('${encodeURIComponent(JSON.stringify(result[i]))}', ${result[i].patientId})">
                     AI 建議

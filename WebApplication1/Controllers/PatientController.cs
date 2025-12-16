@@ -132,24 +132,11 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                var patientDBModel = new PatientDBModel();
+                var dbResult = DeletePatient(patientId).Result;
 
-                // 依照 PatientId 查詢該筆資料
-                var patientDBModelList = QueryPatientList(patientId).Result;
-
-                if (patientDBModelList.Count() > 0)
+                if (dbResult)
                 {
-                    patientDBModel = patientDBModelList.First();
-                }
-
-                // 將該筆資料設定為【未啟用】
-                patientDBModel.Active = false;
-
-                var dbResult = UpdatePatient(patientDBModel);
-
-                if (dbResult.Result)
-                {
-                    return Ok(dbResult.Result);
+                    return Ok(dbResult);
                 }
 
                 return BadRequest(dbResult);
@@ -247,7 +234,6 @@ namespace WebApplication1.Controllers
             {
                 resourceType = "Patient",
                 id = p.PatientId.ToString(),
-                active = p.Active,
 
                 // （可選）加 narrative，解掉 dom-6 警告
                 text = new
@@ -414,6 +400,26 @@ namespace WebApplication1.Controllers
         }
 
         #region SQL
+        public Task<bool> DeletePatient(long patientId)
+        {
+            bool result = false;
+            using var connection = new SqlConnection(ConnStr);
+            var deleteStr = @"DELETE FROM DB1.dbo.Patient WHERE PatientId = @PatientId";
+
+            using var command = new SqlCommand(deleteStr, connection);
+            command.Parameters.Add(new SqlParameter("@PatientId", patientId));
+
+            connection.Open();
+            var deleteResult = command.ExecuteNonQuery();
+            connection.Close();
+
+            if (deleteResult > 0)
+            {
+                result = true;
+            }
+            return Task.FromResult(result);
+        }
+
         public Task<long> InsertPatient(PatientDBModel patient)
         {
             long insertId = 0;
@@ -422,14 +428,14 @@ namespace WebApplication1.Controllers
             var insertStr = @"
                 INSERT INTO DB1.dbo.Patient
                 (
-                    IdNo, Active, FamilyName, GivenName, Telecom, Gender, Birthday,
+                    IdNo, FamilyName, GivenName, Telecom, Gender, Birthday,
                     Address, IsHospitalized, AdmitDate, DischargeDate, DischargeStatus,
                     TransferHospital, OtherDischargeStatus, AdmitHospital, Occupation,
                     HasMajorInjury, HasDisability, LastModifiedAt
                 )
                 VALUES
                 (
-                    @IdNo, @Active, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday,
+                    @IdNo, @FamilyName, @GivenName, @Telecom, @Gender, @Birthday,
                     @Address, @IsHospitalized, @AdmitDate, @DischargeDate, @DischargeStatus,
                     @TransferHospital, @OtherDischargeStatus, @AdmitHospital, @Occupation,
                     @HasMajorInjury, @HasDisability, SYSDATETIME()
@@ -446,7 +452,6 @@ namespace WebApplication1.Controllers
             command.Parameters.Add(outPutValue);
 
             command.Parameters.Add(new SqlParameter("@IdNo", patient.IdNo));
-            command.Parameters.Add(new SqlParameter("@Active", patient.Active));
             command.Parameters.Add(new SqlParameter("@FamilyName", patient.FamilyName));
             command.Parameters.Add(new SqlParameter("@GivenName", patient.GivenName));
             command.Parameters.Add(new SqlParameter("@Telecom", patient.Telecom));
@@ -484,9 +489,6 @@ namespace WebApplication1.Controllers
             var param = new List<SqlParameter>();
             var baseQuery = @"FROM DB1.dbo.Patient
                             WHERE 1=1 ";
-
-            baseQuery += " AND Active = @Active";
-            param.Add(new SqlParameter("@Active", true));
 
             if (patientId != null)
             {
@@ -545,7 +547,6 @@ namespace WebApplication1.Controllers
             var countSql = $"SELECT COUNT(1) {baseQuery}";
             var queryStr = @$"SELECT PatientId
                                     , IdNo
-                                    , Active
                                     , FamilyName
                                     , GivenName
                                     , Telecom
@@ -593,7 +594,6 @@ namespace WebApplication1.Controllers
                     {
                         PatientId = reader.GetInt64(reader.GetOrdinal("PatientId")),
                         IdNo = reader.GetString(reader.GetOrdinal("IdNo")),
-                        Active = reader.GetBoolean(reader.GetOrdinal("Active")),
                         FamilyName = reader.GetString(reader.GetOrdinal("FamilyName")),
                         GivenName = reader.GetString(reader.GetOrdinal("GivenName")),
                         Telecom = reader.IsDBNull(reader.GetOrdinal("Telecom")) ? string.Empty : reader.GetString(reader.GetOrdinal("Telecom")),
@@ -628,7 +628,6 @@ namespace WebApplication1.Controllers
             var param = new List<SqlParameter>();
             var queryStr = @"SELECT PatientId
                                     , IdNo
-                                    , Active
                                     , FamilyName
                                     , GivenName
                                     , Telecom
@@ -648,9 +647,6 @@ namespace WebApplication1.Controllers
                                     , LastModifiedAt
                             FROM DB1.dbo.Patient
                             WHERE 1=1 ";
-
-            queryStr += " AND Active = @Active";
-            param.Add(new SqlParameter("@Active", true));
 
             if (patientId != null)
             {
@@ -724,7 +720,6 @@ namespace WebApplication1.Controllers
                     {
                         PatientId = reader.GetInt64(reader.GetOrdinal("PatientId")),
                         IdNo = reader.GetString(reader.GetOrdinal("IdNo")),
-                        Active = reader.GetBoolean(reader.GetOrdinal("Active")),
                         FamilyName = reader.GetString(reader.GetOrdinal("FamilyName")),
                         GivenName = reader.GetString(reader.GetOrdinal("GivenName")),
                         Telecom = reader.IsDBNull(reader.GetOrdinal("Telecom")) ? string.Empty : reader.GetString(reader.GetOrdinal("Telecom")),
@@ -762,7 +757,6 @@ namespace WebApplication1.Controllers
             SqlConnection connection = new SqlConnection(ConnStr);
             var inserteStr = @"UPDATE DB1.dbo.Patient
                                SET IdNo = @IdNo,
-                                   Active = @Active,
                                    FamilyName = @FamilyName,
                                    GivenName = @GivenName,
                                    Telecom = @Telecom,
@@ -786,7 +780,6 @@ namespace WebApplication1.Controllers
 
             command.Parameters.Add(new SqlParameter("@PatientId", patient.PatientId));
             command.Parameters.Add(new SqlParameter("@IdNo", patient.IdNo));
-            command.Parameters.Add(new SqlParameter("@Active", patient.Active));
             command.Parameters.Add(new SqlParameter("@FamilyName", patient.FamilyName));
             command.Parameters.Add(new SqlParameter("@GivenName", patient.GivenName));
             command.Parameters.Add(new SqlParameter("@Telecom", patient.Telecom));
@@ -825,7 +818,6 @@ namespace WebApplication1.Controllers
             {
                 PatientId = viewModel.PatientId,
                 IdNo = viewModel.IdNo,
-                Active = viewModel.Active,
                 FamilyName = viewModel.FamilyName,
                 GivenName = viewModel.GivenName,
                 Telecom = viewModel.Telecom,
@@ -852,7 +844,6 @@ namespace WebApplication1.Controllers
             {
                 PatientId = dbModel.PatientId,
                 IdNo = dbModel.IdNo,
-                Active = dbModel.Active,
                 FamilyName = dbModel.FamilyName,
                 GivenName = dbModel.GivenName,
                 Telecom = dbModel.Telecom,

@@ -162,6 +162,9 @@ namespace WebApplication1.Controllers
             // 這裡要確保 DateTime? 真的會是 null，而不是 MinValue（下面會改 QueryPatientList）
             var admitDateString = p.AdmitDate.HasValue ? p.AdmitDate.Value.ToString("yyyy-MM-dd") : null;
             var dischargeDateString = p.DischargeDate.HasValue ? p.DischargeDate.Value.ToString("yyyy-MM-dd") : null;
+            var lastUpdatedInstant = DateTime.SpecifyKind(p.LastModifiedAt, DateTimeKind.Local)
+                                            .ToUniversalTime()
+                                            .ToString("o");
 
             // 先用 List<object> 動態組 extension，避免空值也被輸出
             var extensions = new List<object>();
@@ -230,10 +233,35 @@ namespace WebApplication1.Controllers
                 });
             }
 
+            if (!string.IsNullOrWhiteSpace(p.Occupation))
+            {
+                extensions.Add(new
+                {
+                    url = "https://your-hospital.tw/fhir/StructureDefinition/patient-occupation", // TODO
+                    valueString = p.Occupation
+                });
+            }
+
+            extensions.Add(new
+            {
+                url = "https://your-hospital.tw/fhir/StructureDefinition/patient-hasMajorInjury", // TODO
+                valueBoolean = p.HasMajorInjury
+            });
+
+            extensions.Add(new
+            {
+                url = "https://your-hospital.tw/fhir/StructureDefinition/patient-hasDisability", // TODO
+                valueBoolean = p.HasDisability
+            });
+
             var fhirPatient = new
             {
                 resourceType = "Patient",
                 id = p.PatientId.ToString(),
+                meta = new
+                {
+                    lastUpdated = lastUpdatedInstant
+                },
 
                 // （可選）加 narrative，解掉 dom-6 警告
                 text = new
@@ -867,7 +895,6 @@ namespace WebApplication1.Controllers
         #endregion Private
     }
 }
-
 
 
 

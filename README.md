@@ -29,6 +29,9 @@ This project connects to the course **Electronic Medical Records** by implementi
 - CSS
 - JavaScript
 
+## Demo
+- [Video](https://drive.google.com/file/d/1jA-iBB9PeXOWwrS9vh-zlyofdTRF7u3W/view?usp=sharing)
+
 ## Docs
 - [Presentation](https://canva.link/0wouw49wei915mm)
 
